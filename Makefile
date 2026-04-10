@@ -5,6 +5,11 @@ LDFLAGS=-static -lm
 
 # ************************ EXECUTABLES ************************
 
+# make using library
+all-lib: lib main.o
+	${CC} ${CFLAGS} build/bins/main.o -o build/main.elf -Lbuild/bins -lgfx ${LDFLAGS}
+
+# make without library, just binaries
 all: pixel.o graphics.o main.o
 	${CC} ${CFLAGS} build/bins/main.o build/bins/graphics.o build/bins/pixel.o -o build/main.elf ${LDFLAGS}
 
@@ -23,6 +28,6 @@ main.o: src/main.c src/lib/graphics.h src/lib/pixel.h
 
 lib: graphics.o pixel.o
 	${AR} rcs build/bins/libgfx.a build/bins/graphics.o build/bins/pixel.o
-
+	
 clean:
 	rm -f build/bins/*.elf build/bins/*.o build/bins/*.a build/*.elf
