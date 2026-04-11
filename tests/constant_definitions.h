@@ -1,0 +1,9 @@
+
+#define LED_MATRIX_0_SIZE (0xdac)
+#define LED_MATRIX_0_WIDTH (0x23)
+#define LED_MATRIX_0_HEIGHT (0x19)
+
+#define W LED_MATRIX_0_WIDTH
+#define H LED_MATRIX_0_HEIGHT
+
+#define LED_MATRIX_0_BASE (0xf0000000)
