@@ -172,19 +172,10 @@ void graphics_draw_circle_filled(int cx, int cy, int radius, pixel_t color)
 
 void graphics_clear(pixel_t color)
 {
-    printf("Clearing with color: %u\n", color);
-    printf("Current W H: %u %u\n", g_width, g_height);
-    for (int y = 0; y < g_height; y++)
-    {
-        for (int x = 0; x < g_width; x++)
-        {
-            printf("Clearing [x: %u, y: %u]\n", x, y);
-            graphics_draw_point(x, y, color);
-        }
-    }
+    graphics_draw_rect_filled(0, 0, g_width, g_height, color);
 }
 
 void graphics_fill(pixel_t color)
 {
-    graphics_clear(color);
+    graphics_draw_rect_filled(0, 0, g_width, g_height, color);
 }
