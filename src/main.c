@@ -20,26 +20,6 @@
 
 #define LED_MATRIX_0_BASE (0xf0000000)
 
-// static unsigned *g_led_base = 0;
-// static int g_width = 0;
-// static int g_height = 0;
-
-// void graphics_init(unsigned *led_base, int width, int height)
-// {
-//     g_led_base = led_base;
-//     g_width = width;
-//     g_height = height;
-// }
-
-// void graphics_draw_point(int x, int y, pixel_t color)
-// {
-//     if (x < 0 || x >= g_width || y < 0 || y >= g_height)
-//         return;
-
-//     unsigned idx = y * g_width + x;
-//     *(g_led_base + idx) = color;
-// }
-
 void main()
 {
     unsigned v = 0;
