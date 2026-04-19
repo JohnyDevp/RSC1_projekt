@@ -11,7 +11,9 @@
 
 #define W 35
 #define H 25
-
+#define SWITCHES_0_BASE (0xf0000dbc)
+#define SWITCHES_0_SIZE (0x4)
+#define SWITCHES_0_N (0x8)
 // D-Pad adresy
 #define D_PAD_BASE (0xf0000000)
 #define D_PAD_UP    (0xf0000000)
@@ -19,11 +21,9 @@
 #define D_PAD_LEFT (0xf0000008)
 #define D_PAD_RIGHT (0xf000000c)
 
+volatile uint32_t* switches = (uint32_t*)SWITCHES_0_BASE;
 
-int paddle_x = 20;
-int paddle_w = 8;
-int ball_x = 17, ball_y = 20;
-int ball_dx = 1, ball_dy = -1;
+
 #define BRICK_ROWS 3
 #define BRICK_COLS 7
 #define BRICK_W 5
@@ -270,66 +270,216 @@ void clear_screen() {
     draw_rect(0, 0, W, H, 0x000000);
 }
 
-/* --- HLAVNÍ FUNKCE --- */
-void main() {
-    init_bricks();
-    
-    // Ukazatele na registry D-Padu
-    volatile uint32_t* btn_left  = (uint32_t*)D_PAD_LEFT;
-    volatile uint32_t* btn_right = (uint32_t*)D_PAD_RIGHT;
+
+/* ===================================================== */
+/* ================= BRICK BREAKER ===================== */
+/* ===================================================== */
+
+#define BRICK_ROWS 3
+#define BRICK_COLS 7
+#define BRICK_W 5
+#define BRICK_H 2
+
+uint8_t bricks[BRICK_ROWS][BRICK_COLS];
+
+int paddle_x;
+int paddle_w = 6;
+
+int ball_x, ball_y;
+int ball_dx, ball_dy;
+
+/* ===== INIT ===== */
+void brick_init() {
+    paddle_x = W / 2 - 3;
+
+    ball_x = W / 2;
+    ball_y = H - 5;
+    ball_dx = 1;
+    ball_dy = -1;
+
+    // inicializace bricků
+    for (int r = 0; r < BRICK_ROWS; r++) {
+        for (int c = 0; c < BRICK_COLS; c++) {
+            bricks[r][c] = 1;
+        }
+    }
+}
+
+/* ===== STEP ===== */
+void brick_step() {
+    volatile uint32_t* left  = (uint32_t*)D_PAD_LEFT;
+    volatile uint32_t* right = (uint32_t*)D_PAD_RIGHT;
+
+    /* ---- SMAŽ STARÉ OBJEKTY ---- */
+    draw_pixel(ball_x, ball_y, 0x000000);
+    draw_rect(paddle_x, H-1, paddle_w, 1, 0x000000);
+
+    /* ---- OVLÁDÁNÍ ---- */
+    if (*left && paddle_x > 0) paddle_x--;
+    if (*right && paddle_x < W - paddle_w) paddle_x++;
+
+    /* ---- POHYB MÍČKU ---- */
+    ball_x += ball_dx;
+    ball_y += ball_dy;
+
+    /* ---- ODRAZY OD STĚN ---- */
+    if (ball_x <= 0 || ball_x >= W-1) ball_dx *= -1;
+    if (ball_y <= 0) ball_dy *= -1;
+
+    /* ---- ODRAZ OD PÁLKY ---- */
+    if (ball_y == H-2 &&
+        ball_x >= paddle_x &&
+        ball_x < paddle_x + paddle_w) {
+        ball_dy *= -1;
+    }
+
+    /* ---- KOLIZE S BRICKY ---- */
+    if (ball_y < BRICK_ROWS * (BRICK_H + 1)) {
+
+        int r = ball_y / (BRICK_H + 1);
+        int c = ball_x / BRICK_W;
+
+        if (r >= 0 && r < BRICK_ROWS &&
+            c >= 0 && c < BRICK_COLS) {
+
+            if (bricks[r][c]) {
+                bricks[r][c] = 0;   // znič cihlu
+                ball_dy *= -1;      // odraz
+            }
+        }
+    }
+
+    /* ---- PÁD MÍČKU ---- */
+    if (ball_y >= H) {
+        brick_init();
+        clear_screen();
+        return;
+    }
+
+    /* ---- VYKRESLENÍ ---- */
+
+    // pálka
+    draw_rect(paddle_x, H-1, paddle_w, 1, 0x00FF00);
+
+    // míček
+    draw_pixel(ball_x, ball_y, 0xFFFFFF);
+
+    // bricks
+    for (int r = 0; r < BRICK_ROWS; r++) {
+        for (int c = 0; c < BRICK_COLS; c++) {
+            if (bricks[r][c]) {
+                draw_rect(
+                    c * BRICK_W,
+                    r * (BRICK_H + 1),
+                    BRICK_W - 1,
+                    BRICK_H,
+                    0xFF0000
+                );
+            }
+        }
+    }
+}
+/* ===================================================== */
+/* ====================== SNAKE ========================= */
+/* ===================================================== */
+
+#define MAX_LEN 50
+
+int snake_x[MAX_LEN];
+int snake_y[MAX_LEN];
+int snake_len = 5;
+
+int dir_x = 1, dir_y = 0;
+
+int food_x = 10, food_y = 10;
+
+void snake_init() {
+    snake_len = 5;
+    for (int i = 0; i < snake_len; i++) {
+        snake_x[i] = 5 - i;
+        snake_y[i] = 5;
+    }
+    dir_x = 1; dir_y = 0;
+    food_x = 15;
+    food_y = 10;
+}
+
+void snake_step() {
+    volatile uint32_t* up    = (uint32_t*)D_PAD_UP;
+    volatile uint32_t* down  = (uint32_t*)D_PAD_DOWN;
+    volatile uint32_t* left  = (uint32_t*)D_PAD_LEFT;
+    volatile uint32_t* right = (uint32_t*)D_PAD_RIGHT;
+
+    // ovládání
+    if (*up)    { dir_x = 0; dir_y = -1; }
+    if (*down)  { dir_x = 0; dir_y = 1; }
+    if (*left)  { dir_x = -1; dir_y = 0; }
+    if (*right) { dir_x = 1; dir_y = 0; }
+
+    // smaž ocas
+    draw_pixel(snake_x[snake_len-1], snake_y[snake_len-1], 0x000000);
+
+    // posun těla
+    for (int i = snake_len-1; i > 0; i--) {
+        snake_x[i] = snake_x[i-1];
+        snake_y[i] = snake_y[i-1];
+    }
+
+    // hlava
+    snake_x[0] += dir_x;
+    snake_y[0] += dir_y;
+
+    // kolize se stěnou
+    if (snake_x[0] < 0 || snake_x[0] >= W || snake_y[0] < 0 || snake_y[0] >= H) {
+        snake_init();
+        clear_screen();
+        return;
+    }
+
+    // jídlo
+    if (snake_x[0] == food_x && snake_y[0] == food_y) {
+        if (snake_len < MAX_LEN) snake_len++;
+        food_x = (food_x + 7) % W;
+        food_y = (food_y + 5) % H;
+    }
+
+    // vykreslení
+    for (int i = 0; i < snake_len; i++)
+        draw_pixel(snake_x[i], snake_y[i], 0x00FF00);
+
+    draw_pixel(food_x, food_y, 0xFF0000);
+}
+
+/* ===================================================== */
+/* ======================= MAIN ========================= */
+/* ===================================================== */
+
+int main() {
+    volatile uint32_t* switches = (uint32_t*)SWITCHES_0_BASE;
+
+    int last_mode = -1;
 
     while (1) {
-        // 1. ČTENÍ VSTUPU (Ovládání pálky)
-        printf("L: %d R: %d\n", *btn_left, *btn_right);
-        if (*btn_left == 1 && paddle_x > 0) {
-            paddle_x -= 1;
-        }
-        if (*btn_right == 1 && paddle_x < (W - paddle_w)) {
-            paddle_x += 1;
-        }
+        int mode = (*switches) & 0x1;
 
-        // 2. LOGIKA MÍČKU
-        ball_x += ball_dx;
-        ball_y += ball_dy;
+        // změna hry → reset
+        if (mode != last_mode) {
+            clear_screen();
 
-        if (ball_x <= 0 || ball_x >= W - 1) ball_dx = -ball_dx;
-        if (ball_y <= 0) ball_dy = -ball_dy;
-        if (ball_y == H - 2 && ball_x >= paddle_x && ball_x < paddle_x + paddle_w) {
-            ball_dy = -ball_dy;
+            if (mode == 0) brick_init();
+            else snake_init();
+
+            last_mode = mode;
         }
 
-        // Kolize s cihlami
-        if (ball_y < BRICK_ROWS * 3) {
-            int r = ball_y / 3;
-            int c = ball_x / 5;
-            if (r >= 0 && r < BRICK_ROWS && c >= 0 && c < BRICK_COLS) {
-                if (bricks[r][c]) {
-                    bricks[r][c] = 0; // Cihla zmizí
-                    ball_dy = -ball_dy; // Odraz
-                }
-            }
+        // běh hry
+        if (mode == 0) {
+            brick_step();
+        } else {
+            snake_step();
         }
 
-        if (ball_y >= H) {
-            ball_x = W / 2; ball_y = H - 5;
-            ball_dy = -1;
-            init_bricks();
-        }
-
-        // 3. VYKRESLOVÁNÍ
-        draw_rect_filled(0, 0, W, H, 0x000000);
-        draw_rect_filled(paddle_x, H - 2, paddle_w, 1, 0x00FF00);
-        draw_pixel(ball_x, ball_y, 0xFFFFFF);
-
-        for (int r = 0; r < BRICK_ROWS; r++) {
-            for (int c = 0; c < BRICK_COLS; c++) {
-                if (bricks[r][c]) {
-                    draw_rect_filled(c * 5, r * 3, 4, 2, 0xFF0000);
-                }
-            }
-        }
-
-        // 4. PAUZA (Důležité pro viditelnost pohybu)
-        for (volatile int i = 0; i < 500; i++);
+        // delay
+        for (volatile int i = 0; i < 3000; i++);
     }
 }
