@@ -7,8 +7,8 @@
 
 #define W LED_MATRIX_0_WIDTH
 #define H LED_MATRIX_0_HEIGHT
-// #define W 128
-// #define H 64
+#define W 128
+#define H 64
 
 // *****************************************************************************
 // * SWITCHES_0
@@ -18,26 +18,26 @@
 #define SWITCHES_0_N (0x8)
 
 // *****************************************************************************
+// * D_PAD_0
+// *****************************************************************************
+#define D_PAD_0_BASE (0xf0000004)
+#define D_PAD_0_SIZE (0x10)
+#define D_PAD_0_UP_OFFSET (0x0)
+#define D_PAD_0_UP (0xf0000004)
+#define D_PAD_0_DOWN_OFFSET (0x4)
+#define D_PAD_0_DOWN (0xf0000008)
+#define D_PAD_0_LEFT_OFFSET (0x8)
+#define D_PAD_0_LEFT (0xf000000c)
+#define D_PAD_0_RIGHT_OFFSET (0xc)
+#define D_PAD_0_RIGHT (0xf0000010)
+
+// *****************************************************************************
 // * LED_MATRIX_0
 // *****************************************************************************
-#define LED_MATRIX_0_BASE (0xf0000004)
+#define LED_MATRIX_0_BASE (0xf0000014)
 #define LED_MATRIX_0_SIZE (0x8000)
 #define LED_MATRIX_0_WIDTH (0x80)
 #define LED_MATRIX_0_HEIGHT (0x40)
-
-// *****************************************************************************
-// * D_PAD_0
-// *****************************************************************************
-#define D_PAD_0_BASE (0xf0008004)
-#define D_PAD_0_SIZE (0x10)
-#define D_PAD_0_UP_OFFSET (0x0)
-#define D_PAD_0_UP (0xf0008004)
-#define D_PAD_0_DOWN_OFFSET (0x4)
-#define D_PAD_0_DOWN (0xf0008008)
-#define D_PAD_0_LEFT_OFFSET (0x8)
-#define D_PAD_0_LEFT (0xf000800c)
-#define D_PAD_0_RIGHT_OFFSET (0xc)
-#define D_PAD_0_RIGHT (0xf0008010)
 
 volatile uint32_t *switches = (uint32_t *)SWITCHES_0_BASE;
 
@@ -429,30 +429,59 @@ int main()
 {
     volatile uint32_t *switches = (uint32_t *)SWITCHES_0_BASE;
 
-    int last_mode = -1;
+    uint32_t last_mode = (*switches & 0xFF);
 
-    draw_pixel(10, 10, 0xFFFFFF); // test LEDek
-    draw_pixel(8, 8, 0xBBBBBB); // test LEDek
-    // clear_screen();
-    return 0;
+    graphics_init((unsigned *)LED_MATRIX_0_BASE, W, H);
+
+    clear_screen();
+
     while (1)
     {
 
-        int mode = (*switches) & 1;
-
+        uint32_t mode = (*switches) & 0xFF;
+        printf("Mode: %u\n", mode);
         /* ================= SWITCH GAME ================= */
         if (mode != last_mode)
         {
 
             clear_screen();
 
-            if (mode == 0)
+            if (mode == 1)
             {
                 brick_init();
             }
-            else
+            else if (mode == 2)
             {
                 snake_init();
+            }
+            else if (mode == 4)
+            {
+                // draw pixel test
+                for (int i = 0; i < 10; i++)
+                {
+                    draw_pixel(i, i, 0xFF0000);
+                    draw_pixel(W - 1 - i, i, 0x00FF00);
+                }
+            }
+            else if (mode == 8)
+            {
+                // draw rect test
+                draw_rect(10, 10, 50, 30, 0x0000FF);
+            }
+            else if (mode == 16)
+            {
+                // draw rect filled test
+                draw_rect_filled(20, 20, 50, 30, 0xFFFF00);
+            }
+            else if (mode == 32)
+            {
+                // draw circle test
+                graphics_draw_circle(W / 2, H / 2, 20, 0xFF00FF);
+            }
+            else if (mode == 64)
+            {
+                // draw circle filled test
+                graphics_draw_circle_filled(W / 2, H / 2, 20, 0x00FFFF);
             }
 
             last_mode = mode;
@@ -460,11 +489,11 @@ int main()
 
         /* ================= RUN GAME ================= */
 
-        if (mode == 0)
+        if (mode == 1)
         {
             brick_step();
         }
-        else
+        else if (mode == 2)
         {
             snake_step();
         }
