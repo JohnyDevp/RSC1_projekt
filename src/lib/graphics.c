@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 /* Global graphics state */
+
 static unsigned *g_led_base = 0;
 static int g_width = 0;
 static int g_height = 0;
@@ -44,6 +45,14 @@ static int clip_y(int y)
     if (y >= g_height)
         return g_height - 1;
     return y;
+}
+
+void graphics_draw_pixel(int x, int y, pixel_t color)
+{
+    if (x >= 0 && x < g_width && y >= 0 && y < g_height)
+    {
+        *((pixel_t *)g_led_base + (y * g_width + x)) = color;
+    }
 }
 
 void graphics_draw_point(int x, int y, pixel_t color)
@@ -178,4 +187,9 @@ void graphics_clear(pixel_t color)
 void graphics_fill(pixel_t color)
 {
     graphics_draw_rect_filled(0, 0, g_width, g_height, color);
+}
+
+void graphics_clear_screen()
+{
+    graphics_draw_rect_filled(0, 0, g_width, g_height, 0x000000);
 }
