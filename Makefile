@@ -18,9 +18,6 @@ all: pixel.o graphics.o main.o
 test: src/lib/pixel.c src/lib/graphics.c src/main.c
 	${CC} ${CFLAGS} -x c src/main.c src/lib/graphics.c src/lib/pixel.c -o build/test.elf ${LDFLAGS}
 
-main_next: src/main_next.c
-	${CC} ${CFLAGS} -x c src/main_next.c -o build/main_next.elf ${LDFLAGS}
-	
 # ************************ BINARIES ************************
 
 graphics.o: src/lib/graphics.c src/lib/graphics.h

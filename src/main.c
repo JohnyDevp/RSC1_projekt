@@ -84,7 +84,7 @@ void brick_init()
     old_ball_x = ball_x;
     old_ball_y = ball_y;
 
-    clear_screen();
+    graphics_clear_screen();
 
     /* vytvoř a vykresli bricky */
     for (int r = 0; r < BRICK_ROWS; r++)
@@ -93,7 +93,7 @@ void brick_init()
         {
             bricks[r][c] = 1;
 
-            draw_rect_filled(
+            graphics_draw_rect_filled(
                 c * BRICK_W,
                 r * BRICK_H,
                 BRICK_W - 1,
@@ -103,8 +103,8 @@ void brick_init()
     }
 
     /* první vykreslení */
-    draw_rect_filled(paddle_x, H - 2, paddle_w, 2, 0x00FF00);
-    draw_pixel(ball_x, ball_y, 0xFFFFFF);
+    graphics_draw_rect_filled(paddle_x, H - 2, paddle_w, 2, 0x00FF00);
+    graphics_draw_pixel(ball_x, ball_y, 0xFFFFFF);
 }
 
 /* ==== STEP ==== */
@@ -116,10 +116,10 @@ void brick_step()
     /* ================= MAZÁNÍ ================= */
 
     /* smaž starý míček */
-    draw_pixel(old_ball_x, old_ball_y, 0x000000);
+    graphics_draw_pixel(old_ball_x, old_ball_y, 0x000000);
 
     /* smaž pálku jen pokud se hnula */
-    draw_rect_filled(old_paddle_x, H - 2, paddle_w, 2, 0x000000);
+    graphics_draw_rect_filled(old_paddle_x, H - 2, paddle_w, 2, 0x000000);
 
     /* ================= OVLÁDÁNÍ ================= */
 
@@ -167,7 +167,7 @@ void brick_step()
 
         bricks[r][c] = 0;
 
-        draw_rect_filled(
+        graphics_draw_rect_filled(
             c * BRICK_W,
             r * BRICK_H,
             BRICK_W - 1,
@@ -187,8 +187,8 @@ void brick_step()
 
     /* ================= KRESLENÍ ================= */
 
-    draw_rect_filled(paddle_x, H - 2, paddle_w, 2, 0x00FF00);
-    draw_pixel(ball_x, ball_y, 0xFFFFFF);
+    graphics_draw_rect_filled(paddle_x, H - 2, paddle_w, 2, 0x00FF00);
+    graphics_draw_pixel(ball_x, ball_y, 0xFFFFFF);
 
     /* ================= ULOŽ POZICE ================= */
 
@@ -253,19 +253,19 @@ void erase_tail(int x, int y)
 {
     if (is_obstacle(x, y))
     {
-        draw_pixel(x, y, 0x888888);
+        graphics_draw_pixel(x, y, 0x888888);
     }
     else if (is_food(x, y))
     {
-        draw_pixel(x, y, 0xFF0000);
+        graphics_draw_pixel(x, y, 0xFF0000);
     }
     else if (is_bonus(x, y))
     {
-        draw_pixel(x, y, 0xFFFF00);
+        graphics_draw_pixel(x, y, 0xFFFF00);
     }
     else
     {
-        draw_pixel(x, y, 0x000000);
+        graphics_draw_pixel(x, y, 0x000000);
     }
 }
 
@@ -273,7 +273,7 @@ void erase_tail(int x, int y)
 
 void snake_init()
 {
-    clear_screen(); // důležité
+    graphics_clear_screen(); // důležité
 
     snake_len = 5;
 
@@ -301,13 +301,13 @@ void snake_init()
 
     /* první vykreslení */
     for (int i = 0; i < OBST_COUNT; i++)
-        draw_pixel(obst_x[i], obst_y[i], 0x888888);
+        graphics_draw_pixel(obst_x[i], obst_y[i], 0x888888);
 
-    draw_pixel(food_x, food_y, 0xFF0000);
-    draw_pixel(bonus_x, bonus_y, 0xFFFF00);
+    graphics_draw_pixel(food_x, food_y, 0xFF0000);
+    graphics_draw_pixel(bonus_x, bonus_y, 0xFFFF00);
 
     for (int i = 0; i < snake_len; i++)
-        draw_pixel(snake_x[i], snake_y[i], 0x00FF00);
+        graphics_draw_pixel(snake_x[i], snake_y[i], 0x00FF00);
 }
 /* ================= STEP ================= */
 
@@ -358,7 +358,7 @@ void snake_step()
     if (snake_x[0] < 0 || snake_x[0] >= W ||
         snake_y[0] < 0 || snake_y[0] >= H)
     {
-        clear_screen();
+        graphics_clear_screen();
         snake_init();
         return;
     }
@@ -369,7 +369,7 @@ void snake_step()
         if (snake_x[0] == snake_x[i] &&
             snake_y[0] == snake_y[i])
         {
-            clear_screen();
+            graphics_clear_screen();
             snake_init();
             return;
         }
@@ -381,7 +381,7 @@ void snake_step()
         if (snake_x[0] == obst_x[i] &&
             snake_y[0] == obst_y[i])
         {
-            clear_screen();
+            graphics_clear_screen();
             snake_init();
             return;
         }
@@ -412,14 +412,14 @@ void snake_step()
     }
 
     /* kreslení hlavy */
-    draw_pixel(snake_x[0], snake_y[0], 0x00FF00);
+    graphics_draw_pixel(snake_x[0], snake_y[0], 0x00FF00);
 
     /* kreslení objektů */
-    draw_pixel(food_x, food_y, 0xFF0000);
-    draw_pixel(bonus_x, bonus_y, 0xFFFF00);
+    graphics_draw_pixel(food_x, food_y, 0xFF0000);
+    graphics_draw_pixel(bonus_x, bonus_y, 0xFFFF00);
 
     for (int i = 0; i < OBST_COUNT; i++)
-        draw_pixel(obst_x[i], obst_y[i], 0x888888);
+        graphics_draw_pixel(obst_x[i], obst_y[i], 0x888888);
 }
 /* ===================================================== */
 /* ======================= MAIN ========================= */
@@ -433,25 +433,26 @@ int main()
 
     graphics_init((unsigned *)LED_MATRIX_0_BASE, W, H);
 
-    clear_screen();
+    graphics_clear_screen();
 
     while (1)
     {
 
         uint32_t mode = (*switches) & 0xFF;
         printf("Mode: %u\n", mode);
+
         /* ================= SWITCH GAME ================= */
         if (mode != last_mode)
         {
 
-            clear_screen();
-
             if (mode == 1)
             {
+                graphics_clear_screen();
                 brick_init();
             }
             else if (mode == 2)
             {
+                graphics_clear_screen();
                 snake_init();
             }
             else if (mode == 4)
@@ -459,19 +460,19 @@ int main()
                 // draw pixel test
                 for (int i = 0; i < 10; i++)
                 {
-                    draw_pixel(i, i, 0xFF0000);
-                    draw_pixel(W - 1 - i, i, 0x00FF00);
+                    graphics_draw_point(i, i, 0xFF0000);
+                    graphics_draw_point(W - 1 - i, i, 0x00FF00);
                 }
             }
             else if (mode == 8)
             {
                 // draw rect test
-                draw_rect(10, 10, 50, 30, 0x0000FF);
+                graphics_draw_rect(10, 10, 50, 30, 0x0000FF);
             }
             else if (mode == 16)
             {
                 // draw rect filled test
-                draw_rect_filled(20, 20, 50, 30, 0xFFFF00);
+                graphics_draw_rect_filled(20, 20, 50, 30, 0xFFFF00);
             }
             else if (mode == 32)
             {
@@ -482,6 +483,10 @@ int main()
             {
                 // draw circle filled test
                 graphics_draw_circle_filled(W / 2, H / 2, 20, 0x00FFFF);
+            }
+            else if (mode == 128)
+            {
+                graphics_clear_screen();
             }
 
             last_mode = mode;

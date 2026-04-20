@@ -47,7 +47,7 @@ static int clip_y(int y)
     return y;
 }
 
-void draw_pixel(int x, int y, pixel_t color)
+void graphics_draw_pixel(int x, int y, pixel_t color)
 {
     if (x >= 0 && x < g_width && y >= 0 && y < g_height)
     {
@@ -138,7 +138,7 @@ void draw_rect(int x, int y, int width, int height, pixel_t color)
     {
         for (int j = 0; j < width; j++)
         {
-            draw_pixel(x + j, y + i, color);
+            graphics_draw_pixel(x + j, y + i, color);
         }
     }
 }
@@ -206,12 +206,12 @@ void draw_rect_filled(int x, int y, int width, int height, pixel_t color)
     {
         for (int xx = 0; xx < width; xx++)
         {
-            draw_pixel(x + xx, y + yy, color);
+            graphics_draw_pixel(x + xx, y + yy, color);
         }
     }
 }
 
-void clear_screen()
+void graphics_clear_screen()
 {
     draw_rect(0, 0, g_width, g_height, 0x000000);
 }
