@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-
 #define W LED_MATRIX_0_WIDTH
 #define H LED_MATRIX_0_HEIGHT
 #define W 128
@@ -200,15 +199,24 @@ void graphics_draw_line(int x0, int y0, int x1, int y1, pixel_t color)
     }
 }
 
-
 int main(void)
 {
     graphics_init((unsigned *)LED_MATRIX_0_BASE, W, H);
+    
+    // draw random shapes
     graphics_clear_screen();
     graphics_draw_circle_filled(W / 2, H / 2, 20, pixel_color_from_rgb(255, 0, 0));
-    graphics_draw_circle(W / 2 + 20, H / 2 + 20, 20, pixel_color_from_rgb(0, 255, 0));
+    graphics_draw_circle(W / 2 + 10, H / 2 + 10, 10, pixel_color_from_rgb(0, 255, 0));
     graphics_draw_line(0, 0, W - 1, H - 1, pixel_color_from_rgb(0, 0, 255));
     graphics_draw_rect(10, 10, 50, 30, pixel_color_from_rgb(255, 255, 0));
     graphics_draw_rect_filled(20, 20, 50, 30, pixel_color_from_rgb(0, 255, 255));
+    
+    // draw me a smiley face with background
+    graphics_draw_filled_rect(0, 0, W, H, pixel_color_from_rgb(0, 0, 0));
+    graphics_draw_circle(W / 2, H / 2, 30, pixel_color_from_rgb(255, 255, 0));
+    graphics_draw_circle_filled(W / 2 - 10, H / 2 - 10, 5, pixel_color_from_rgb(0, 0, 0));
+    graphics_draw_circle_filled(W / 2 + 10, H / 2 - 10, 5, pixel_color_from_rgb(0, 0, 0));
+    graphics_draw_line(W / 2 - 10, H / 2 + 10, W / 2 + 10, H / 2 + 10, pixel_color_from_rgb(0, 0, 0));
+    
     return 0;
 }
