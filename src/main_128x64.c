@@ -32,12 +32,13 @@
 
 volatile uint32_t* switches = (uint32_t*)SWITCHES_0_BASE;
 
+#define BRICK_ROWS 5
+#define BRICK_COLS 10
+#define BRICK_W (W / BRICK_COLS)
+#define BRICK_H 3
 
-#define BRICK_ROWS 3
-#define BRICK_COLS 7
-#define BRICK_W 5
-#define BRICK_H 2
 uint8_t bricks[BRICK_ROWS][BRICK_COLS];
+
 typedef uint32_t pixel_t;
 static unsigned *g_led_base = 0;
 static int g_width = 0;
@@ -81,6 +82,12 @@ static int clip_y(int y)
     if (y >= g_height)
         return g_height - 1;
     return y;
+}
+
+void draw_pixel(int x, int y, pixel_t color) {
+    if (x >= 0 && x < W && y >= 0 && y < H) {
+        *((pixel_t*)LED_MATRIX_0_BASE + (y * W + x)) = color;
+    }
 }
 
 void graphics_draw_point(int x, int y, pixel_t color)
@@ -223,12 +230,7 @@ void graphics_fill(pixel_t color)
     graphics_draw_rect_filled(0, 0, g_width, g_height, color);
 }
 
-/* LEDs
- * This program draws an animation on an LED matrix peripheral.
- *
- * To run this program, make sure that you have instantiated an "LED Matrix"
- * peripheral in the "I/O" tab.
- */
+
 pixel_t rgb(uint8_t r, uint8_t g, uint8_t b) {
     return (((pixel_t)r << 16) | ((pixel_t)g << 8) | (pixel_t)b);
 }
@@ -253,11 +255,7 @@ uint8_t pixel_get_b(pixel_t pixel)
     return pixel & 0xFF;
 }
 
-void draw_pixel(int x, int y, pixel_t color) {
-    if (x >= 0 && x < W && y >= 0 && y < H) {
-        *((pixel_t*)LED_MATRIX_0_BASE + (y * W + x)) = color;
-    }
-}
+
 
 void draw_rect_filled(int x, int y, int width, int height, pixel_t color) {
     for (int yy = 0; yy < height; yy++) {
@@ -284,134 +282,233 @@ void clear_screen() {
 /* ================= BRICK BREAKER ===================== */
 /* ===================================================== */
 
-#define BRICK_ROWS 3
-#define BRICK_COLS 7
-#define BRICK_W 5
-#define BRICK_H 2
+#define BRICK_ROWS 5
+#define BRICK_COLS 10
+#define BRICK_W (W / BRICK_COLS)
+#define BRICK_H 3
 
 uint8_t bricks[BRICK_ROWS][BRICK_COLS];
 
+/* ==== GAME STATE ==== */
 int paddle_x;
-int paddle_w = 6;
+int paddle_w = 12;
 
 int ball_x, ball_y;
 int ball_dx, ball_dy;
 
-/* ===== INIT ===== */
-void brick_init() {
-    paddle_x = W / 2 - 3;
+/* ==== OLD POSITIONS (KLÍČOVÉ!) ==== */
+int old_ball_x, old_ball_y;
+int old_paddle_x;
 
-    ball_x = W / 2;
-    ball_y = H - 5;
+/* ==== INIT ==== */
+void brick_init() {
+    paddle_x = W/2 - paddle_w/2;
+    old_paddle_x = paddle_x;
+
+    ball_x = W/2;
+    ball_y = H - 6;
     ball_dx = 1;
     ball_dy = -1;
 
-    // inicializace bricků
+    old_ball_x = ball_x;
+    old_ball_y = ball_y;
+
+    clear_screen();
+
+    /* vytvoř a vykresli bricky */
     for (int r = 0; r < BRICK_ROWS; r++) {
         for (int c = 0; c < BRICK_COLS; c++) {
             bricks[r][c] = 1;
+
+            draw_rect_filled(
+                c * BRICK_W,
+                r * BRICK_H,
+                BRICK_W - 1,
+                BRICK_H - 1,
+                0xFF0000
+            );
         }
     }
+
+    /* první vykreslení */
+    draw_rect_filled(paddle_x, H-2, paddle_w, 2, 0x00FF00);
+    draw_pixel(ball_x, ball_y, 0xFFFFFF);
 }
 
-/* ===== STEP ===== */
+/* ==== STEP ==== */
 void brick_step() {
     volatile uint32_t* left  = (uint32_t*)D_PAD_0_LEFT;
     volatile uint32_t* right = (uint32_t*)D_PAD_0_RIGHT;
 
-    /* ---- SMAŽ STARÉ OBJEKTY ---- */
-    draw_pixel(ball_x, ball_y, 0x000000);
-    draw_rect(paddle_x, H-1, paddle_w, 1, 0x000000);
+    /* ================= MAZÁNÍ ================= */
 
-    /* ---- OVLÁDÁNÍ ---- */
+    /* smaž starý míček */
+    draw_pixel(old_ball_x, old_ball_y, 0x000000);
+
+    /* smaž pálku jen pokud se hnula */
+    draw_rect_filled(old_paddle_x, H-2, paddle_w, 2, 0x000000);
+
+    /* ================= OVLÁDÁNÍ ================= */
+
     if (*left && paddle_x > 0) paddle_x--;
     if (*right && paddle_x < W - paddle_w) paddle_x++;
 
-    /* ---- POHYB MÍČKU ---- */
+    /* ================= POHYB ================= */
+
     ball_x += ball_dx;
     ball_y += ball_dy;
 
-    /* ---- ODRAZY OD STĚN ---- */
+    /* stěny */
     if (ball_x <= 0 || ball_x >= W-1) ball_dx *= -1;
     if (ball_y <= 0) ball_dy *= -1;
 
-    /* ---- ODRAZ OD PÁLKY ---- */
-    if (ball_y == H-2 &&
+    /* pálka */
+    if (ball_y >= H-3 &&
         ball_x >= paddle_x &&
         ball_x < paddle_x + paddle_w) {
+
+        int hit = ball_x - paddle_x;
+
+        if (hit < paddle_w/2) ball_dx = -1;
+        else ball_dx = 1;
+
         ball_dy *= -1;
     }
 
-    /* ---- KOLIZE S BRICKY ---- */
-    if (ball_y < BRICK_ROWS * (BRICK_H + 1)) {
+    /* ================= BRICK KOLIZE ================= */
 
-        int r = ball_y / (BRICK_H + 1);
-        int c = ball_x / BRICK_W;
+    int r = ball_y / BRICK_H;
+    int c = ball_x / BRICK_W;
 
-        if (r >= 0 && r < BRICK_ROWS &&
-            c >= 0 && c < BRICK_COLS) {
+    if (r >= 0 && r < BRICK_ROWS &&
+        c >= 0 && c < BRICK_COLS &&
+        bricks[r][c]) {
 
-            if (bricks[r][c]) {
-                bricks[r][c] = 0;   // znič cihlu
-                ball_dy *= -1;      // odraz
-            }
-        }
+        bricks[r][c] = 0;
+
+        draw_rect_filled(
+            c * BRICK_W,
+            r * BRICK_H,
+            BRICK_W - 1,
+            BRICK_H - 1,
+            0x000000
+        );
+
+        ball_dy *= -1;
     }
 
-    /* ---- PÁD MÍČKU ---- */
+    /* ================= RESET ================= */
+
     if (ball_y >= H) {
         brick_init();
-        clear_screen();
         return;
     }
 
-    /* ---- VYKRESLENÍ ---- */
+    /* ================= KRESLENÍ ================= */
 
-    // pálka
-    draw_rect(paddle_x, H-1, paddle_w, 1, 0x00FF00);
-
-    // míček
+    draw_rect_filled(paddle_x, H-2, paddle_w, 2, 0x00FF00);
     draw_pixel(ball_x, ball_y, 0xFFFFFF);
 
-    // bricks
-    for (int r = 0; r < BRICK_ROWS; r++) {
-        for (int c = 0; c < BRICK_COLS; c++) {
-            if (bricks[r][c]) {
-                draw_rect(
-                    c * BRICK_W,
-                    r * (BRICK_H + 1),
-                    BRICK_W - 1,
-                    BRICK_H,
-                    0xFF0000
-                );
-            }
-        }
-    }
+    /* ================= ULOŽ POZICE ================= */
+
+    old_ball_x = ball_x;
+    old_ball_y = ball_y;
+    old_paddle_x = paddle_x;
 }
+
+
+
 /* ===================================================== */
-/* ====================== SNAKE ========================= */
+/* ======================= SNAKE ========================= */
 /* ===================================================== */
 
-#define MAX_LEN 50
+#define MAX_LEN 60
+#define OBST_COUNT 10
 
 int snake_x[MAX_LEN];
 int snake_y[MAX_LEN];
-int snake_len = 5;
+int snake_len;
 
-int dir_x = 1, dir_y = 0;
+int dir_x, dir_y;
 
-int food_x = 10, food_y = 10;
+int food_x, food_y;
+int bonus_x, bonus_y;
+int bonus_timer;
+
+int obst_x[OBST_COUNT];
+int obst_y[OBST_COUNT];
+
+/* ================= HELPERS ================= */
+
+int is_obstacle(int x, int y) {
+    for (int i = 0; i < OBST_COUNT; i++)
+        if (obst_x[i] == x && obst_y[i] == y)
+            return 1;
+    return 0;
+}
+
+int is_food(int x, int y) {
+    return (x == food_x && y == food_y);
+}
+
+int is_bonus(int x, int y) {
+    return (x == bonus_x && y == bonus_y);
+}
+
+/* 🔥 KLÍČOVÁ FUNKCE – správné mazání */
+void erase_tail(int x, int y) {
+    if (is_obstacle(x, y)) {
+        draw_pixel(x, y, 0x888888);
+    }
+    else if (is_food(x, y)) {
+        draw_pixel(x, y, 0xFF0000);
+    }
+    else if (is_bonus(x, y)) {
+        draw_pixel(x, y, 0xFFFF00);
+    }
+    else {
+        draw_pixel(x, y, 0x000000);
+    }
+}
+
+/* ================= INIT ================= */
 
 void snake_init() {
+    clear_screen();   // 💥 důležité
+
     snake_len = 5;
-    for (int i = 0; i < snake_len; i++) {
-        snake_x[i] = 5 - i;
-        snake_y[i] = 5;
+
+    dir_x = 1;
+    dir_y = 0;
+
+    food_x = 20;
+    food_y = 15;
+
+    bonus_x = 30;
+    bonus_y = 20;
+    bonus_timer = 0;
+
+    for (int i = 0; i < OBST_COUNT; i++) {
+        obst_x[i] = (i * 11) % W;
+        obst_y[i] = (i * 7) % H;
     }
-    dir_x = 1; dir_y = 0;
-    food_x = 15;
-    food_y = 10;
+
+    for (int i = 0; i < snake_len; i++) {
+        snake_x[i] = 10 - i;
+        snake_y[i] = 10;
+    }
+
+    /* první vykreslení */
+    for (int i = 0; i < OBST_COUNT; i++)
+        draw_pixel(obst_x[i], obst_y[i], 0x888888);
+
+    draw_pixel(food_x, food_y, 0xFF0000);
+    draw_pixel(bonus_x, bonus_y, 0xFFFF00);
+
+    for (int i = 0; i < snake_len; i++)
+        draw_pixel(snake_x[i], snake_y[i], 0x00FF00);
 }
+/* ================= STEP ================= */
 
 void snake_step() {
     volatile uint32_t* up    = (uint32_t*)D_PAD_0_UP;
@@ -419,46 +516,82 @@ void snake_step() {
     volatile uint32_t* left  = (uint32_t*)D_PAD_0_LEFT;
     volatile uint32_t* right = (uint32_t*)D_PAD_0_RIGHT;
 
-    // ovládání
+    /* ovládání */
     if (*up)    { dir_x = 0; dir_y = -1; }
     if (*down)  { dir_x = 0; dir_y = 1; }
     if (*left)  { dir_x = -1; dir_y = 0; }
     if (*right) { dir_x = 1; dir_y = 0; }
 
-    // smaž ocas
-    draw_pixel(snake_x[snake_len-1], snake_y[snake_len-1], 0x000000);
+    /* smaž ocas SPRÁVNĚ */
+    erase_tail(snake_x[snake_len-1], snake_y[snake_len-1]);
 
-    // posun těla
+    /* posun těla */
     for (int i = snake_len-1; i > 0; i--) {
         snake_x[i] = snake_x[i-1];
         snake_y[i] = snake_y[i-1];
     }
 
-    // hlava
+    /* hlava */
     snake_x[0] += dir_x;
     snake_y[0] += dir_y;
 
-    // kolize se stěnou
-    if (snake_x[0] < 0 || snake_x[0] >= W || snake_y[0] < 0 || snake_y[0] >= H) {
-        snake_init();
+    /* kolize stěny */
+    if (snake_x[0] < 0 || snake_x[0] >= W ||
+        snake_y[0] < 0 || snake_y[0] >= H) {
         clear_screen();
+        snake_init();
         return;
     }
 
-    // jídlo
-    if (snake_x[0] == food_x && snake_y[0] == food_y) {
-        if (snake_len < MAX_LEN) snake_len++;
-        food_x = (food_x + 7) % W;
-        food_y = (food_y + 5) % H;
+    /* self collision */
+    for (int i = 1; i < snake_len; i++) {
+        if (snake_x[0] == snake_x[i] &&
+            snake_y[0] == snake_y[i]) {
+            clear_screen();
+            snake_init();
+            return;
+        }
     }
 
-    // vykreslení
-    for (int i = 0; i < snake_len; i++)
-        draw_pixel(snake_x[i], snake_y[i], 0x00FF00);
+    /* překážky */
+    for (int i = 0; i < OBST_COUNT; i++) {
+        if (snake_x[0] == obst_x[i] &&
+            snake_y[0] == obst_y[i]) {
+            clear_screen();
+            snake_init();
+            return;
+        }
+    }
 
+    /* food */
+    if (snake_x[0] == food_x && snake_y[0] == food_y) {
+        if (snake_len < MAX_LEN) snake_len++;
+        food_x = (food_x + 13) % W;
+        food_y = (food_y + 9) % H;
+    }
+
+    /* bonus */
+    bonus_timer++;
+    if (bonus_timer > 200) {
+        bonus_x = (bonus_x + 17) % W;
+        bonus_y = (bonus_y + 5) % H;
+        bonus_timer = 0;
+    }
+
+    if (snake_x[0] == bonus_x && snake_y[0] == bonus_y) {
+        if (snake_len < MAX_LEN-2) snake_len += 2;
+    }
+
+    /* kreslení hlavy */
+    draw_pixel(snake_x[0], snake_y[0], 0x00FF00);
+
+    /* kreslení objektů */
     draw_pixel(food_x, food_y, 0xFF0000);
-}
+    draw_pixel(bonus_x, bonus_y, 0xFFFF00);
 
+    for (int i = 0; i < OBST_COUNT; i++)
+        draw_pixel(obst_x[i], obst_y[i], 0x888888);
+}
 /* ===================================================== */
 /* ======================= MAIN ========================= */
 /* ===================================================== */
@@ -468,27 +601,35 @@ int main() {
 
     int last_mode = -1;
 
-    while (1) {
-        int mode = (*switches) & 0x1;
+    clear_screen();
 
-        // změna hry → reset
+    while (1) {
+
+        int mode = (*switches) & 1;
+
+        /* ================= SWITCH GAME ================= */
         if (mode != last_mode) {
+
             clear_screen();
 
-            if (mode == 0) brick_init();
-            else snake_init();
+            if (mode == 0) {
+                brick_init();
+            } else {
+                snake_init();
+            }
 
             last_mode = mode;
         }
 
-        // běh hry
+        /* ================= RUN GAME ================= */
+
         if (mode == 0) {
             brick_step();
         } else {
             snake_step();
         }
 
-        // delay
-        for (volatile int i = 0; i < 500; i++);
+        /* delay */
+        for (volatile int i = 0; i < 800; i++);
     }
 }
