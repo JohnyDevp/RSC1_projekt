@@ -8,7 +8,7 @@ void control_printout();
 /* Graphics initialization */
 void graphics_init(unsigned *led_base, int width, int height);
 
-/* Basic drawing operations */
+/* Preferred graphics API */
 void graphics_draw_point(int x, int y, pixel_t color);
 void graphics_draw_line(int x0, int y0, int x1, int y1, pixel_t color);
 void graphics_draw_rect(int x, int y, int width, int height, pixel_t color);
@@ -21,5 +21,11 @@ void graphics_clear(pixel_t color);
 void graphics_fill(pixel_t color);
 int graphics_get_width(void);
 int graphics_get_height(void);
+
+/* Compatibility drawing API used by existing code */
+void draw_pixel(int x, int y, pixel_t color);
+void draw_rect(int x, int y, int width, int height, pixel_t color);
+void draw_rect_filled(int x, int y, int width, int height, pixel_t color);
+void clear_screen(void);
 
 #endif /* GRAPHICS_H */
