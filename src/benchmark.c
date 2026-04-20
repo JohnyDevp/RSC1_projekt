@@ -43,9 +43,9 @@ int main(void)
 {
     graphics_init((unsigned *)LED_MATRIX_0_BASE, W, H);
 
+    // draw random shapes
     graphics_clear_screen();
 
-    // draw random shapes
     graphics_draw_circle_filled(W / 2, H / 2, 20, pixel_color_from_rgb(255, 0, 0));
     graphics_draw_circle(W / 2 + 10, H / 2 + 10, 10, pixel_color_from_rgb(0, 255, 0));
     graphics_draw_line(0, 0, W - 1, H - 1, pixel_color_from_rgb(0, 0, 255));
@@ -53,11 +53,21 @@ int main(void)
     graphics_draw_rect_filled(20, 20, 50, 30, pixel_color_from_rgb(0, 255, 255));
 
     // draw me a smiley face with background
-    graphics_draw_rect_filled(0, 0, W, H, pixel_color_from_rgb(0, 0, 0));
+    graphics_clear_screen();
+
     graphics_draw_circle(W / 2, H / 2, 30, pixel_color_from_rgb(255, 255, 0));
-    graphics_draw_circle_filled(W / 2 - 10, H / 2 - 10, 5, pixel_color_from_rgb(0, 0, 0));
-    graphics_draw_circle_filled(W / 2 + 10, H / 2 - 10, 5, pixel_color_from_rgb(0, 0, 0));
-    graphics_draw_line(W / 2 - 10, H / 2 + 10, W / 2 + 10, H / 2 + 10, pixel_color_from_rgb(0, 0, 0));
+    // draw eyes
+    graphics_draw_circle_filled(W / 2 - 10, H / 2 - 10, 5, pixel_color_from_rgb(250, 100, 0));
+    graphics_draw_circle_filled(W / 2 + 10, H / 2 - 10, 5, pixel_color_from_rgb(250, 100, 0));
+    // draw nose
+    graphics_draw_line(W / 2, H / 2 - 5, W / 2, H / 2 + 5, pixel_color_from_rgb(250, 100, 0));
+    // draw smile by points
+    for (int i = -10; i <= 10; i++)
+    {
+        int x = W / 2 + i;
+        int y = H / 2 + 20 - (i * i) / 20; // parabola for smile
+        graphics_draw_point(x, y, pixel_color_from_rgb(250, 100, 0));
+    }
 
     return 0;
 }
