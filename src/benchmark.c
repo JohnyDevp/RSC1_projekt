@@ -53,7 +53,7 @@ int main(void)
     graphics_draw_rect_filled(20, 20, 50, 30, pixel_color_from_rgb(0, 255, 255));
 
     // draw me a smiley face with background
-    graphics_draw_filled_rect(0, 0, W, H, pixel_color_from_rgb(0, 0, 0));
+    graphics_draw_rect_filled(0, 0, W, H, pixel_color_from_rgb(0, 0, 0));
     graphics_draw_circle(W / 2, H / 2, 30, pixel_color_from_rgb(255, 255, 0));
     graphics_draw_circle_filled(W / 2 - 10, H / 2 - 10, 5, pixel_color_from_rgb(0, 0, 0));
     graphics_draw_circle_filled(W / 2 + 10, H / 2 - 10, 5, pixel_color_from_rgb(0, 0, 0));
