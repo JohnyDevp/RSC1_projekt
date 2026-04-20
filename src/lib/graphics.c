@@ -132,17 +132,6 @@ void graphics_draw_rect_filled(int x, int y, int width, int height, pixel_t colo
     }
 }
 
-void draw_rect(int x, int y, int width, int height, pixel_t color)
-{
-    for (int i = 0; i < height; i++)
-    {
-        for (int j = 0; j < width; j++)
-        {
-            graphics_draw_pixel(x + j, y + i, color);
-        }
-    }
-}
-
 /* Simple circle drawing using Midpoint Circle Algorithm */
 void graphics_draw_circle(int cx, int cy, int radius, pixel_t color)
 {
@@ -200,18 +189,7 @@ void graphics_fill(pixel_t color)
     graphics_draw_rect_filled(0, 0, g_width, g_height, color);
 }
 
-void draw_rect_filled(int x, int y, int width, int height, pixel_t color)
-{
-    for (int yy = 0; yy < height; yy++)
-    {
-        for (int xx = 0; xx < width; xx++)
-        {
-            graphics_draw_pixel(x + xx, y + yy, color);
-        }
-    }
-}
-
 void graphics_clear_screen()
 {
-    draw_rect(0, 0, g_width, g_height, 0x000000);
+    graphics_draw_rect_filled(0, 0, g_width, g_height, 0x000000);
 }

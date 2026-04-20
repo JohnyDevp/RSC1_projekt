@@ -15,9 +15,14 @@ all-lib: lib main.o
 all: pixel.o graphics.o main.o
 	${CC} ${CFLAGS} build/bin/main.o build/bin/graphics.o build/bin/pixel.o -o build/main.elf ${LDFLAGS}
 
-test: src/lib/pixel.c src/lib/graphics.c src/main.c
-	${CC} ${CFLAGS} -x c src/main.c src/lib/graphics.c src/lib/pixel.c -o build/test.elf ${LDFLAGS}
+of-main: src/onefile/main.c
+	${CC} ${CFLAGS} -x c src/onefile/main.c -o build/of-main.elf ${LDFLAGS}
 
+of-benchmark: src/onefile/benchmark.c
+	${CC} ${CFLAGS} -x c src/onefile/benchmark.c -o build/of-benchmark.elf ${LDFLAGS}
+
+benchmark: src/lib/pixel.c src/lib/graphics.c src/benchmark.c
+	${CC} ${CFLAGS} -x c src/benchmark.c src/lib/graphics.c src/lib/pixel.c -o build/benchmark.elf ${LDFLAGS}
 # ************************ BINARIES ************************
 
 graphics.o: src/lib/graphics.c src/lib/graphics.h

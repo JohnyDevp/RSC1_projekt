@@ -1,9 +1,5 @@
-// #include "/tmp/ripes_system.h"
 #include <stdint.h>
 #include <stdio.h>
-
-#include "lib/graphics.h"
-#include "lib/pixel.h"
 
 #define W LED_MATRIX_0_WIDTH
 #define H LED_MATRIX_0_HEIGHT
@@ -38,6 +34,172 @@
 #define LED_MATRIX_0_SIZE (0x8000)
 #define LED_MATRIX_0_WIDTH (0x80)
 #define LED_MATRIX_0_HEIGHT (0x40)
+
+// ******************************************************************************
+// inlucded functions
+
+// ******************************************************************************
+typedef uint32_t pixel_t;
+
+pixel_t pixel_color_from_rgb(uint8_t r, uint8_t g, uint8_t b)
+{
+    return (((pixel_t)r << 16) | ((pixel_t)g << 8) | (pixel_t)b);
+}
+
+pixel_t pixel_color_from_hex(uint32_t hex)
+{
+    return hex;
+}
+
+// ******************************************************************************
+static unsigned *g_led_base = 0;
+static int g_width = 0;
+static int g_height = 0;
+
+void graphics_init(unsigned *led_base, int width, int height)
+{
+    g_led_base = led_base;
+    g_width = width;
+    g_height = height;
+}
+
+void graphics_draw_pixel(int x, int y, pixel_t color)
+{
+    if (x >= 0 && x < g_width && y >= 0 && y < g_height)
+    {
+        *((pixel_t *)g_led_base + (y * g_width + x)) = color;
+    }
+}
+
+void graphics_draw_point(int x, int y, pixel_t color)
+{
+    if (x < 0 || x >= g_width || y < 0 || y >= g_height)
+        return;
+
+    unsigned idx = y * g_width + x;
+    *(g_led_base + idx) = color;
+}
+
+void graphics_draw_rect(int x, int y, int width, int height, pixel_t color)
+{
+    /* Top and bottom edges */
+    for (int i = 0; i < width; i++)
+    {
+        graphics_draw_point(x + i, y, color);
+        graphics_draw_point(x + i, y + height - 1, color);
+    }
+
+    /* Left and right edges */
+    for (int i = 0; i < height; i++)
+    {
+        graphics_draw_point(x, y + i, color);
+        graphics_draw_point(x + width - 1, y + i, color);
+    }
+}
+
+void graphics_draw_rect_filled(int x, int y, int width, int height, pixel_t color)
+{
+    for (int yy = 0; yy < height; yy++)
+    {
+        for (int xx = 0; xx < width; xx++)
+        {
+            graphics_draw_point(x + xx, y + yy, color);
+        }
+    }
+}
+
+void graphics_clear_screen()
+{
+    graphics_draw_rect_filled(0, 0, g_width, g_height, 0x000000);
+}
+
+void graphics_draw_circle(int cx, int cy, int radius, pixel_t color)
+{
+    int x = radius;
+    int y = 0;
+    int d = 3 - 2 * radius;
+
+    while (x >= y)
+    {
+        graphics_draw_point(cx + x, cy + y, color);
+        graphics_draw_point(cx - x, cy + y, color);
+        graphics_draw_point(cx + x, cy - y, color);
+        graphics_draw_point(cx - x, cy - y, color);
+        graphics_draw_point(cx + y, cy + x, color);
+        graphics_draw_point(cx - y, cy + x, color);
+        graphics_draw_point(cx + y, cy - x, color);
+        graphics_draw_point(cx - y, cy - x, color);
+
+        if (d < 0)
+        {
+            d = d + 4 * y + 6;
+        }
+        else
+        {
+            d = d + 4 * (y - x) + 10;
+            x--;
+        }
+        y++;
+    }
+}
+
+void graphics_draw_circle_filled(int cx, int cy, int radius, pixel_t color)
+{
+    for (int y = -radius; y <= radius; y++)
+    {
+        for (int x = -radius; x <= radius; x++)
+        {
+            int dx = x;
+            int dy = y;
+            if (dx * dx + dy * dy <= radius * radius)
+            {
+                graphics_draw_point(cx + x, cy + y, color);
+            }
+        }
+    }
+}
+
+/* Bresenham's line algorithm */
+void graphics_draw_line(int x0, int y0, int x1, int y1, pixel_t color)
+{
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+
+    if (dx < 0)
+        dx = -dx;
+    if (dy < 0)
+        dy = -dy;
+
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = dx - dy;
+
+    int x = x0, y = y0;
+
+    while (1)
+    {
+        graphics_draw_point(x, y, color);
+
+        if (x == x1 && y == y1)
+            break;
+
+        int e2 = 2 * err;
+
+        if (e2 > -dy)
+        {
+            err -= dy;
+            x += sx;
+        }
+
+        if (e2 < dx)
+        {
+            err += dx;
+            y += sy;
+        }
+    }
+}
+
+/// *****************************************************************************
 
 #define BRICK_ROWS 5
 #define BRICK_COLS 10
