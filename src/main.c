@@ -7,8 +7,7 @@
 
 #define W LED_MATRIX_0_WIDTH
 #define H LED_MATRIX_0_HEIGHT
-#define W 128
-#define H 64
+
 
 // *****************************************************************************
 // * SWITCHES_0

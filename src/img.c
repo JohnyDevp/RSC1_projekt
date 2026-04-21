@@ -1,7 +1,5 @@
-// #include "/tmp/ripes_system.h"
 #include <stdint.h>
 #include <stdio.h>
-
 #include "lib/graphics.h"
 #include "lib/pixel.h"
 
@@ -38,35 +36,43 @@
 #define D_PAD_0_RIGHT_OFFSET (0xc)
 #define D_PAD_0_RIGHT (0xf0008010)
 
-int main(void)
+// the image
+#include "../pics/image_palm.h"
+#include "../pics/image_tree.h"
+
+int main()
 {
     graphics_init((unsigned *)LED_MATRIX_0_BASE, W, H);
 
-    // draw random shapes
     graphics_clear_screen();
 
-    graphics_draw_circle_filled(W / 2, H / 2, 20, pixel_color_from_rgb(255, 0, 0));
-    graphics_draw_circle(W / 2 + 10, H / 2 + 10, 10, pixel_color_from_rgb(0, 255, 0));
-    graphics_draw_line(0, 0, W - 1, H - 1, pixel_color_from_rgb(0, 0, 255));
-    graphics_draw_rect(10, 10, 50, 30, pixel_color_from_rgb(255, 255, 0));
-    graphics_draw_rect_filled(20, 20, 50, 30, pixel_color_from_rgb(0, 255, 255));
+    // random image
+    const int iw = 4;
+    const int ih = 4;
+    const uint8_t img_rgb2[4 * 4 * 3] = {
+        255,0,0,   0,255,0,   0,0,255,   255,255,0,
+        255,0,255, 0,255,255, 255,255,255, 32,32,32,
+        200,50,50, 50,200,50, 50,50,200, 180,120,0,
+        0,0,0,     80,80,80,  160,160,160, 240,240,240
+    };
 
-    // draw me a smiley face with background
-    graphics_clear_screen();
+    graphics_draw_image_u8(img_rgb2, iw, ih, 3, 40, 12);
 
-    graphics_draw_circle(W / 2, H / 2, 30, pixel_color_from_rgb(255, 255, 0));
-    // draw eyes
-    graphics_draw_circle_filled(W / 2 - 10, H / 2 - 10, 5, pixel_color_from_rgb(250, 100, 0));
-    graphics_draw_circle_filled(W / 2 + 10, H / 2 - 10, 5, pixel_color_from_rgb(250, 100, 0));
-    // draw nose
-    graphics_draw_line(W / 2, H / 2 - 5, W / 2, H / 2 + 5, pixel_color_from_rgb(250, 100, 0));
-    // draw smile by points
-    for (int i = -10; i <= 10; i++)
-    {
-        int x = W / 2 + i;
-        int y = H / 2 + 20 - (i * i) / 20; // parabola for smile
-        graphics_draw_point(x, y, pixel_color_from_rgb(250, 100, 0));
-    }
+    // palm image
+    graphics_draw_image_u8(img_palm, IMG_PALM_WIDTH, IMG_PALM_HEIGHT, IMG_PALM_CHANNELS, 60, 12);
+
+    // tree image
+    graphics_draw_image_u8(img_tree, IMG_TREE_WIDTH, IMG_TREE_HEIGHT, IMG_TREE_CHANNELS, 2, 30);
+
+    // random image
+    const uint8_t img_gray[4 * 4] = {
+        0, 64, 128, 255,
+        255, 128, 64, 0,
+        32, 96, 160, 224,
+        224, 160, 96, 32
+    };
+
+    graphics_draw_image_u8(img_gray, 4, 4, 1, 50, 20);
 
     return 0;
 }

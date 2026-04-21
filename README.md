@@ -109,6 +109,36 @@ make all-lib
     - build/benchmark.elf
 3. Select a matching RV32IM machine configuration in Ripes if needed.
 
+## PNG Conversion for graphics_draw_image_u8
+
+You can convert a real PNG file into a C header with uint8 image data.
+
+Script:
+- tools/png_to_c_array.py
+
+Install converter dependency:
+- pip install pillow
+
+Example (RGB output):
+
+```bash
+python tools/png_to_c_array.py image.png --name logo --max-width 128 --max-height 64 --mode rgb --out src/assets/logo.h
+```
+
+Example (grayscale output):
+
+```bash
+python tools/png_to_c_array.py image.png --name logo --max-width 128 --max-height 64 --mode gray --out src/assets/logo_gray.h
+```
+
+Then include the generated header and draw it:
+
+```c
+#include "assets/logo.h"
+
+graphics_draw_image_u8(logo_rgb, LOGO_WIDTH, LOGO_HEIGHT, LOGO_CHANNELS, 0, 0);
+```
+
 ## Notes
 
 - Current flags in project:

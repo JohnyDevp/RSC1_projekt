@@ -25,4 +25,11 @@ int graphics_get_height(void);
 void graphics_draw_pixel(int x, int y, pixel_t color);
 void graphics_clear_screen(void);
 
+/* Draw a pixel buffer (pixel_t values) to LED matrix at destination offset. */
+void graphics_draw_buffer(const pixel_t *buffer, int buffer_width, int buffer_height, int dst_x, int dst_y);
+
+/* Convert raw image bytes and draw pixel-by-pixel.
+ * channels: 1 = grayscale, 3 = RGB, 4 = RGBA (alpha ignored). */
+void graphics_draw_image_u8(const uint8_t *image, int image_width, int image_height, int channels, int dst_x, int dst_y);
+
 #endif /* GRAPHICS_H */

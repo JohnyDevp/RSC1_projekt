@@ -193,3 +193,51 @@ void graphics_clear_screen()
 {
     graphics_draw_rect_filled(0, 0, g_width, g_height, 0x000000);
 }
+
+void graphics_draw_buffer(const pixel_t *buffer, int buffer_width, int buffer_height, int dst_x, int dst_y)
+{
+    if (!buffer || buffer_width <= 0 || buffer_height <= 0)
+        return;
+
+    for (int y = 0; y < buffer_height; y++)
+    {
+        for (int x = 0; x < buffer_width; x++)
+        {
+            pixel_t color = buffer[y * buffer_width + x];
+            graphics_draw_point(dst_x + x, dst_y + y, color);
+        }
+    }
+}
+
+void graphics_draw_image_u8(const uint8_t *image, int image_width, int image_height, int channels, int dst_x, int dst_y)
+{
+    if (!image || image_width <= 0 || image_height <= 0)
+        return;
+
+    if (channels != 1 && channels != 3 && channels != 4)
+        return;
+
+    for (int y = 0; y < image_height; y++)
+    {
+        for (int x = 0; x < image_width; x++)
+        {
+            int idx = (y * image_width + x) * channels;
+            pixel_t color;
+
+            if (channels == 1)
+            {
+                uint8_t g = image[idx];
+                color = pixel_color_from_rgb(g, g, g);
+            }
+            else
+            {
+                uint8_t r = image[idx + 0];
+                uint8_t g = image[idx + 1];
+                uint8_t b = image[idx + 2];
+                color = pixel_color_from_rgb(r, g, b);
+            }
+
+            graphics_draw_point(dst_x + x, dst_y + y, color);
+        }
+    }
+}

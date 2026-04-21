@@ -52,6 +52,16 @@ add_custom_target(benchmark
     DEPENDS prepare
 )
 
+add_custom_target(img
+    COMMAND ${CC} ${CFLAGS} -x c
+            ${CMAKE_SOURCE_DIR}/src/img.c
+            ${CMAKE_SOURCE_DIR}/src/lib/graphics.c
+            ${CMAKE_SOURCE_DIR}/src/lib/pixel.c
+            -o ${BUILD_DIR}/img.elf
+            ${LDFLAGS}
+    DEPENDS prepare
+)
+
 add_custom_target(clean-build
     COMMAND ${CMAKE_COMMAND} -E rm -f
             ${BIN_DIR}/main.o
@@ -62,4 +72,5 @@ add_custom_target(clean-build
             ${BUILD_DIR}/of-main.elf
             ${BUILD_DIR}/of-benchmark.elf
             ${BUILD_DIR}/benchmark.elf
+            ${BUILD_DIR}/img.elf
 )
