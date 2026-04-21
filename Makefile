@@ -21,6 +21,9 @@ of-main: src/onefile/main.c
 of-benchmark: src/onefile/benchmark.c
 	${CC} ${CFLAGS} -x c src/onefile/benchmark.c -o build/of-benchmark.elf ${LDFLAGS}
 
+of-img: src/onefile/img.c
+	${CC} ${CFLAGS} -x c src/onefile/img.c -o build/of-img.elf ${LDFLAGS}
+
 benchmark: src/lib/pixel.c src/lib/graphics.c src/benchmark.c
 	${CC} ${CFLAGS} -x c src/benchmark.c src/lib/graphics.c src/lib/pixel.c -o build/benchmark.elf ${LDFLAGS}
 # ************************ BINARIES ************************
