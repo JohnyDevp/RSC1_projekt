@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(CC "C:\\Users\\holan\\Downloads\\riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-w64-mingw32\\riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-w64-mingw32\\bin\\riscv64-unknown-elf-gcc")
-set(AR "C:\\Users\\holan\\Downloads\\riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-w64-mingw32\\riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-w64-mingw32\\bin\\riscv64-unknown-elf-ar")
-
 project(RSC1 NONE)
+
+# Use RISCV toolchain from user's Downloads directory (expand HOME)
+set(CC $ENV{HOME}/Downloads/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-centos6/bin/riscv64-unknown-elf-gcc)
+set(AR $ENV{HOME}/Downloads/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-centos6/bin/riscv64-unknown-elf-ar)
 
 set(CFLAGS -march=rv32im -mabi=ilp32 -O0 -g)
 set(LDFLAGS -static -lm)
@@ -15,16 +16,22 @@ add_custom_target(prepare
     COMMAND ${CMAKE_COMMAND} -E make_directory ${BIN_DIR}
 )
 
-add_custom_target(all-lib
+# Build library and main linked against it
+add_custom_target(lib
     COMMAND ${CC} ${CFLAGS} -c ${CMAKE_SOURCE_DIR}/src/lib/graphics.c -o ${BIN_DIR}/graphics.o
     COMMAND ${CC} ${CFLAGS} -c ${CMAKE_SOURCE_DIR}/src/lib/pixel.c -o ${BIN_DIR}/pixel.o
     COMMAND ${AR} rcs ${BIN_DIR}/libgfx.a ${BIN_DIR}/graphics.o ${BIN_DIR}/pixel.o
-    COMMAND ${CC} ${CFLAGS} -c ${CMAKE_SOURCE_DIR}/src/main.c -o ${BIN_DIR}/main.o
-    COMMAND ${CC} ${CFLAGS} ${BIN_DIR}/main.o -o ${BUILD_DIR}/main.elf -L${BIN_DIR} -lgfx ${LDFLAGS}
     DEPENDS prepare
 )
 
-add_custom_target(all-bins
+add_custom_target(main-lib ALL
+    COMMAND ${CC} ${CFLAGS} -c ${CMAKE_SOURCE_DIR}/src/main.c -o ${BIN_DIR}/main.o
+    COMMAND ${CC} ${CFLAGS} ${BIN_DIR}/main.o -o ${BUILD_DIR}/main.elf -L${BIN_DIR} -lgfx ${LDFLAGS}
+    DEPENDS lib prepare
+)
+
+# Build single-file objects and link (no library)
+add_custom_target(main
     COMMAND ${CC} ${CFLAGS} -c ${CMAKE_SOURCE_DIR}/src/lib/graphics.c -o ${BIN_DIR}/graphics.o
     COMMAND ${CC} ${CFLAGS} -c ${CMAKE_SOURCE_DIR}/src/lib/pixel.c -o ${BIN_DIR}/pixel.o
     COMMAND ${CC} ${CFLAGS} -c ${CMAKE_SOURCE_DIR}/src/main.c -o ${BIN_DIR}/main.o
@@ -44,6 +51,11 @@ add_custom_target(of-benchmark
 
 add_custom_target(of-img
     COMMAND ${CC} ${CFLAGS} -x c ${CMAKE_SOURCE_DIR}/src/onefile/img.c -o ${BUILD_DIR}/of-img.elf ${LDFLAGS}
+    DEPENDS prepare
+)
+
+add_custom_target(of-img-fullwidth
+    COMMAND ${CC} ${CFLAGS} -x c ${CMAKE_SOURCE_DIR}/src/onefile/img_fullwidth.c -o ${BUILD_DIR}/of-img_fullwidth.elf ${LDFLAGS}
     DEPENDS prepare
 )
 
@@ -67,6 +79,10 @@ add_custom_target(img
     DEPENDS prepare
 )
 
+add_custom_target(all_targets
+    DEPENDS main main-lib benchmark of-main of-benchmark of-img of-img-fullwidth
+)
+
 add_custom_target(clean-build
     COMMAND ${CMAKE_COMMAND} -E rm -f
             ${BIN_DIR}/main.o
@@ -77,6 +93,7 @@ add_custom_target(clean-build
             ${BUILD_DIR}/of-main.elf
             ${BUILD_DIR}/of-benchmark.elf
             ${BUILD_DIR}/of-img.elf
+            ${BUILD_DIR}/of-img_fullwidth.elf
             ${BUILD_DIR}/benchmark.elf
             ${BUILD_DIR}/img.elf
 )
