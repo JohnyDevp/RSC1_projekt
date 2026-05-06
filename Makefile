@@ -3,16 +3,16 @@ AR=/home/johnny/Downloads/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-c
 CFLAGS=-march=rv32im -mabi=ilp32 -O0 -g
 LDFLAGS=-static -lm
 
-# -march=rv32im -mabi=ilp32 -O0 -g -x c ${input} -o ${output} -static -lm
-
 # ************************ EXECUTABLES ************************
 
+all: main main-lib benchmark of-main of-benchmark of-img of-img_fullwidth
+
 # make using library
-all-lib: lib main.o
+main-lib: lib main.o
 	${CC} ${CFLAGS} build/bin/main.o -o build/main.elf -Lbuild/bin -lgfx ${LDFLAGS}
 
 # make without library, just binaries
-all: pixel.o graphics.o main.o
+main: pixel.o graphics.o main.o
 	${CC} ${CFLAGS} build/bin/main.o build/bin/graphics.o build/bin/pixel.o -o build/main.elf ${LDFLAGS}
 
 of-main: src/onefile/main.c
@@ -23,6 +23,9 @@ of-benchmark: src/onefile/benchmark.c
 
 of-img: src/onefile/img.c
 	${CC} ${CFLAGS} -x c src/onefile/img.c -o build/of-img.elf ${LDFLAGS}
+
+of-img-fullwidth: src/onefile/img_fullwidth.c
+	${CC} ${CFLAGS} -x c src/onefile/img_fullwidth.c -o build/of-img_fullwidth.elf ${LDFLAGS}
 
 benchmark: src/lib/pixel.c src/lib/graphics.c src/benchmark.c
 	${CC} ${CFLAGS} -x c src/benchmark.c src/lib/graphics.c src/lib/pixel.c -o build/benchmark.elf ${LDFLAGS}
