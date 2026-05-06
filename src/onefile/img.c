@@ -6,10 +6,11 @@
 // *****************************************************************************
 // * LED_MATRIX_0
 // *****************************************************************************
-#define LED_MATRIX_0_BASE (0xf0000000)
-#define LED_MATRIX_0_SIZE (0x8000)
-#define LED_MATRIX_0_WIDTH (0x80)
-#define LED_MATRIX_0_HEIGHT (0x40)
+#define LED_MATRIX_0_BASE	(0xf0000014)
+#define LED_MATRIX_0_SIZE	(0x8000)
+#define LED_MATRIX_0_WIDTH	(0x80)
+#define LED_MATRIX_0_HEIGHT	(0x40)
+
 
 typedef uint32_t pixel_t;
 
@@ -93,10 +94,18 @@ void graphics_draw_image_u8(const uint8_t *image, int image_width, int image_hei
 int main(void)
 {
     graphics_init((unsigned *)LED_MATRIX_0_BASE, W, H);
-    graphics_clear_screen();
+    // graphics_clear_screen();
 
     graphics_draw_image_u8(img_palm, IMG_PALM_WIDTH, IMG_PALM_HEIGHT, IMG_PALM_CHANNELS, 60, 12);
     graphics_draw_image_u8(img_tree, IMG_TREE_WIDTH, IMG_TREE_HEIGHT, IMG_TREE_CHANNELS, 2, 30);
+
+    // generate image 1*64*1
+    uint8_t img_gray[1 * 64 * 1];
+    for (int i = 0; i < 64; i++)
+    {
+        img_gray[i] = i;
+    }
+    graphics_draw_image_u8(img_gray, 1, 64, 1, 0, 0);
 
     const uint8_t img_rgb2[4 * 4 * 3] = {
         255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 0,
