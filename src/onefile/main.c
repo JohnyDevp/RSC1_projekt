@@ -5,50 +5,36 @@
 #define H LED_MATRIX_0_HEIGHT
 
 // *****************************************************************************
-// * LED_MATRIX_0
+// * D_PAD_0
 // *****************************************************************************
-#define LED_MATRIX_0_BASE (0xf0000000)
-#define LED_MATRIX_0_SIZE (0x8000)
-#define LED_MATRIX_0_WIDTH (0x80)
-#define LED_MATRIX_0_HEIGHT (0x40)
+#define D_PAD_0_BASE (0xf0000000)
+#define D_PAD_0_SIZE (0x10)
+#define D_PAD_0_UP_OFFSET (0x0)
+#define D_PAD_0_UP (0xf0000000)
+#define D_PAD_0_DOWN_OFFSET (0x4)
+#define D_PAD_0_DOWN (0xf0000004)
+#define D_PAD_0_LEFT_OFFSET (0x8)
+#define D_PAD_0_LEFT (0xf0000008)
+#define D_PAD_0_RIGHT_OFFSET (0xc)
+#define D_PAD_0_RIGHT (0xf000000c)
 
 // *****************************************************************************
 // * SWITCHES_0
 // *****************************************************************************
-#define SWITCHES_0_BASE (0xf0008000)
+#define SWITCHES_0_BASE (0xf0000010)
 #define SWITCHES_0_SIZE (0x4)
 #define SWITCHES_0_N (0x8)
 
 // *****************************************************************************
-// * D_PAD_0
+// * LED_MATRIX_0
 // *****************************************************************************
-#define D_PAD_0_BASE (0xf0008004)
-#define D_PAD_0_SIZE (0x10)
-#define D_PAD_0_UP_OFFSET (0x0)
-#define D_PAD_0_UP (0xf0008004)
-#define D_PAD_0_DOWN_OFFSET (0x4)
-#define D_PAD_0_DOWN (0xf0008008)
-#define D_PAD_0_LEFT_OFFSET (0x8)
-#define D_PAD_0_LEFT (0xf000800c)
-#define D_PAD_0_RIGHT_OFFSET (0xc)
-#define D_PAD_0_RIGHT (0xf0008010)
+#define LED_MATRIX_0_BASE (0xf0000014)
+#define LED_MATRIX_0_SIZE (0x8000)
+#define LED_MATRIX_0_WIDTH (0x80)
+#define LED_MATRIX_0_HEIGHT (0x40)
 
-// ******************************************************************************
-// inlucded functions
-// ******************************************************************************
+// local graphics implementation (merged from final.c)
 typedef uint32_t pixel_t;
-
-pixel_t pixel_color_from_rgb(uint8_t r, uint8_t g, uint8_t b)
-{
-    return (((pixel_t)r << 16) | ((pixel_t)g << 8) | (pixel_t)b);
-}
-
-pixel_t pixel_color_from_hex(uint32_t hex)
-{
-    return hex;
-}
-
-// ******************************************************************************
 static unsigned *g_led_base = 0;
 static int g_width = 0;
 static int g_height = 0;
@@ -60,38 +46,39 @@ void graphics_init(unsigned *led_base, int width, int height)
     g_height = height;
 }
 
-void graphics_draw_pixel(int x, int y, pixel_t color)
+int graphics_get_width(void)
 {
-    if (x >= 0 && x < g_width && y >= 0 && y < g_height)
-    {
-        *((pixel_t *)g_led_base + (y * g_width + x)) = color;
-    }
+    return g_width;
+}
+
+int graphics_get_height(void)
+{
+    return g_height;
+}
+
+void graphics_clear_screen()
+{
+    if (!g_led_base)
+        return;
+    for (int y = 0; y < g_height; y++)
+        for (int x = 0; x < g_width; x++)
+            *(g_led_base + y * g_width + x) = 0;
 }
 
 void graphics_draw_point(int x, int y, pixel_t color)
 {
+    if (!g_led_base)
+        return;
     if (x < 0 || x >= g_width || y < 0 || y >= g_height)
         return;
-
     unsigned idx = y * g_width + x;
     *(g_led_base + idx) = color;
 }
 
-void graphics_draw_rect(int x, int y, int width, int height, pixel_t color)
+void graphics_draw_pixel(int x, int y, pixel_t color)
 {
-    /* Top and bottom edges */
-    for (int i = 0; i < width; i++)
-    {
-        graphics_draw_point(x + i, y, color);
-        graphics_draw_point(x + i, y + height - 1, color);
-    }
-
-    /* Left and right edges */
-    for (int i = 0; i < height; i++)
-    {
-        graphics_draw_point(x, y + i, color);
-        graphics_draw_point(x + width - 1, y + i, color);
-    }
+    // alias
+    graphics_draw_point(x, y, color);
 }
 
 void graphics_draw_rect_filled(int x, int y, int width, int height, pixel_t color)
@@ -105,9 +92,18 @@ void graphics_draw_rect_filled(int x, int y, int width, int height, pixel_t colo
     }
 }
 
-void graphics_clear_screen()
+void graphics_draw_rect(int x, int y, int width, int height, pixel_t color)
 {
-    graphics_draw_rect_filled(0, 0, g_width, g_height, 0x000000);
+    for (int i = 0; i < width; i++)
+    {
+        graphics_draw_point(x + i, y, color);
+        graphics_draw_point(x + i, y + height - 1, color);
+    }
+    for (int i = 0; i < height; i++)
+    {
+        graphics_draw_point(x, y + i, color);
+        graphics_draw_point(x + width - 1, y + i, color);
+    }
 }
 
 void graphics_draw_circle(int cx, int cy, int radius, pixel_t color)
@@ -146,9 +142,7 @@ void graphics_draw_circle_filled(int cx, int cy, int radius, pixel_t color)
     {
         for (int x = -radius; x <= radius; x++)
         {
-            int dx = x;
-            int dy = y;
-            if (dx * dx + dy * dy <= radius * radius)
+            if (x * x + y * y <= radius * radius)
             {
                 graphics_draw_point(cx + x, cy + y, color);
             }
@@ -156,54 +150,43 @@ void graphics_draw_circle_filled(int cx, int cy, int radius, pixel_t color)
     }
 }
 
-/* Bresenham's line algorithm */
-void graphics_draw_line(int x0, int y0, int x1, int y1, pixel_t color)
+pixel_t pixel_color_from_rgb(uint8_t r, uint8_t g, uint8_t b)
 {
-    int dx = x1 - x0;
-    int dy = y1 - y0;
+    return (((pixel_t)r << 16) | ((pixel_t)g << 8) | (pixel_t)b);
+}
 
-    if (dx < 0)
-        dx = -dx;
-    if (dy < 0)
-        dy = -dy;
+void graphics_draw_image_u8(const uint8_t *image, int image_width, int image_height, int channels, int dst_x, int dst_y)
+{
+    if (!image || image_width <= 0 || image_height <= 0)
+        return;
 
-    int sx = (x0 < x1) ? 1 : -1;
-    int sy = (y0 < y1) ? 1 : -1;
-    int err = dx - dy;
+    if (channels != 1 && channels != 3 && channels != 4)
+        return;
 
-    int x = x0, y = y0;
-
-    while (1)
+    for (int y = 0; y < image_height; y++)
     {
-        graphics_draw_point(x, y, color);
-
-        if (x == x1 && y == y1)
-            break;
-
-        int e2 = 2 * err;
-
-        if (e2 > -dy)
+        for (int x = 0; x < image_width; x++)
         {
-            err -= dy;
-            x += sx;
-        }
+            int idx = (y * image_width + x) * channels;
+            pixel_t color;
 
-        if (e2 < dx)
-        {
-            err += dx;
-            y += sy;
+            if (channels == 1)
+            {
+                uint8_t g = image[idx];
+                color = pixel_color_from_rgb(g, g, g);
+            }
+            else
+            {
+                uint8_t r = image[idx + 0];
+                uint8_t g = image[idx + 1];
+                uint8_t b = image[idx + 2];
+                color = pixel_color_from_rgb(r, g, b);
+            }
+
+            graphics_draw_point(dst_x + x, dst_y + y, color);
         }
     }
 }
-
-/// *****************************************************************************
-
-#define BRICK_ROWS 5
-#define BRICK_COLS 10
-#define BRICK_W (W / BRICK_COLS)
-#define BRICK_H 3
-
-uint8_t bricks[BRICK_ROWS][BRICK_COLS];
 
 /* ===================================================== */
 /* ================= BRICK BREAKER ===================== */
@@ -218,7 +201,7 @@ uint8_t bricks[BRICK_ROWS][BRICK_COLS];
 
 /* ==== GAME STATE ==== */
 int paddle_x;
-int paddle_w = 12;
+int paddle_w = 24;
 
 int ball_x, ball_y;
 int ball_dx, ball_dy;
@@ -304,12 +287,18 @@ void brick_step()
 
         int hit = ball_x - paddle_x;
 
-        if (hit < paddle_w / 2)
-            ball_dx = -1;
-        else
-            ball_dx = 1;
+        // Rozdělíme pálku na 3 zóny:
+        if (hit < paddle_w / 3)
+        {
+            ball_dx = -1; // Vždy vlevo
+        }
+        else if (hit > (2 * paddle_w) / 3)
+        {
+            ball_dx = 1; // Vždy vpravo
+        }
+        // Ve střední části dx neměníme
 
-        ball_dy *= -1;
+        ball_dy = -1; // Odraz nahoru
     }
 
     /* ================= BRICK KOLIZE ================= */
@@ -371,6 +360,7 @@ void init_bricks()
 
 #define MAX_LEN 60
 #define OBST_COUNT 10
+#define CELL 2
 
 int snake_x[MAX_LEN];
 int snake_y[MAX_LEN];
@@ -405,24 +395,32 @@ int is_bonus(int x, int y)
     return (x == bonus_x && y == bonus_y);
 }
 
+/* draw a CELL x CELL block */
+void draw_block(int x, int y, uint32_t color)
+{
+    for (int yy = 0; yy < CELL; yy++)
+        for (int xx = 0; xx < CELL; xx++)
+            graphics_draw_pixel(x + xx, y + yy, color);
+}
+
 /* KLÍČOVÁ FUNKCE – správné mazání */
 void erase_tail(int x, int y)
 {
     if (is_obstacle(x, y))
     {
-        graphics_draw_pixel(x, y, 0x888888);
+        draw_block(x, y, 0x888888);
     }
     else if (is_food(x, y))
     {
-        graphics_draw_pixel(x, y, 0xFF0000);
+        draw_block(x, y, 0xFF0000);
     }
     else if (is_bonus(x, y))
     {
-        graphics_draw_pixel(x, y, 0xFFFF00);
+        draw_block(x, y, 0xFFFF00);
     }
     else
     {
-        graphics_draw_pixel(x, y, 0x000000);
+        draw_block(x, y, 0x000000);
     }
 }
 
@@ -437,34 +435,36 @@ void snake_init()
     dir_x = 1;
     dir_y = 0;
 
-    food_x = 20;
-    food_y = 15;
+    food_x = (20 % (W / CELL)) * CELL;
+    food_y = (15 % (H / CELL)) * CELL;
 
-    bonus_x = 30;
-    bonus_y = 20;
+    bonus_x = (30 % (W / CELL)) * CELL;
+    bonus_y = (20 % (H / CELL)) * CELL;
     bonus_timer = 0;
 
+    /* překážky */
     for (int i = 0; i < OBST_COUNT; i++)
     {
-        obst_x[i] = (i * 11) % W;
-        obst_y[i] = (i * 7) % H;
+        obst_x[i] = ((i * 11) % (W / CELL)) * CELL;
+        obst_y[i] = ((i * 7) % (H / CELL)) * CELL;
     }
 
+    /* had */
     for (int i = 0; i < snake_len; i++)
     {
-        snake_x[i] = 10 - i;
-        snake_y[i] = 10;
+        snake_x[i] = (10 - i) * CELL;
+        snake_y[i] = 10 * CELL;
     }
 
-    /* první vykreslení */
+    /* vykreslení */
     for (int i = 0; i < OBST_COUNT; i++)
-        graphics_draw_pixel(obst_x[i], obst_y[i], 0x888888);
+        draw_block(obst_x[i], obst_y[i], 0x888888);
 
-    graphics_draw_pixel(food_x, food_y, 0xFF0000);
-    graphics_draw_pixel(bonus_x, bonus_y, 0xFFFF00);
+    draw_block(food_x, food_y, 0xFF0000);
+    draw_block(bonus_x, bonus_y, 0xFFFF00);
 
     for (int i = 0; i < snake_len; i++)
-        graphics_draw_pixel(snake_x[i], snake_y[i], 0x00FF00);
+        draw_block(snake_x[i], snake_y[i], 0x00FF00);
 }
 /* ================= STEP ================= */
 
@@ -476,22 +476,22 @@ void snake_step()
     volatile uint32_t *right = (uint32_t *)D_PAD_0_RIGHT;
 
     /* ovládání */
-    if (*up)
+    if (*up && dir_y != 1)
     {
         dir_x = 0;
         dir_y = -1;
     }
-    if (*down)
+    if (*down && dir_y != -1)
     {
         dir_x = 0;
         dir_y = 1;
     }
-    if (*left)
+    if (*left && dir_x != 1)
     {
         dir_x = -1;
         dir_y = 0;
     }
-    if (*right)
+    if (*right && dir_x != -1)
     {
         dir_x = 1;
         dir_y = 0;
@@ -508,8 +508,8 @@ void snake_step()
     }
 
     /* hlava */
-    snake_x[0] += dir_x;
-    snake_y[0] += dir_y;
+    snake_x[0] += dir_x * CELL;
+    snake_y[0] += dir_y * CELL;
 
     /* kolize stěny */
     if (snake_x[0] < 0 || snake_x[0] >= W ||
@@ -544,39 +544,61 @@ void snake_step()
         }
     }
 
-    /* food */
+    /* ===== FOOD (+1) ===== */
     if (snake_x[0] == food_x && snake_y[0] == food_y)
     {
+
         if (snake_len < MAX_LEN)
-            snake_len++;
-        food_x = (food_x + 13) % W;
-        food_y = (food_y + 9) % H;
+            snake_len += 1;
+
+        draw_block(food_x, food_y, 0x000000);
+
+        do
+        {
+            food_x = (((food_x / CELL) + 13) % (W / CELL)) * CELL;
+            food_y = (((food_y / CELL) + 9) % (H / CELL)) * CELL;
+        } while (is_obstacle(food_x, food_y));
     }
 
-    /* bonus */
+    /* ===== BONUS (+2) ===== */
     bonus_timer++;
+
     if (bonus_timer > 200)
     {
-        bonus_x = (bonus_x + 17) % W;
-        bonus_y = (bonus_y + 5) % H;
+        draw_block(bonus_x, bonus_y, 0x000000);
+
+        bonus_x = (((bonus_x / CELL) + 17) % (W / CELL)) * CELL;
+        bonus_y = (((bonus_y / CELL) + 5) % (H / CELL)) * CELL;
+
         bonus_timer = 0;
     }
 
     if (snake_x[0] == bonus_x && snake_y[0] == bonus_y)
     {
+
         if (snake_len < MAX_LEN - 2)
             snake_len += 2;
+
+        draw_block(bonus_x, bonus_y, 0x000000);
+
+        do
+        {
+            bonus_x = (((bonus_x / CELL) + 17) % (W / CELL)) * CELL;
+            bonus_y = (((bonus_y / CELL) + 5) % (H / CELL)) * CELL;
+        } while (is_obstacle(bonus_x, bonus_y));
+
+        bonus_timer = 0;
     }
 
-    /* kreslení hlavy */
-    graphics_draw_pixel(snake_x[0], snake_y[0], 0x00FF00);
+    /* ===== KRESLENÍ ===== */
 
-    /* kreslení objektů */
-    graphics_draw_pixel(food_x, food_y, 0xFF0000);
-    graphics_draw_pixel(bonus_x, bonus_y, 0xFFFF00);
+    draw_block(snake_x[0], snake_y[0], 0x00FF00);
+
+    draw_block(food_x, food_y, 0xFF0000);
+    draw_block(bonus_x, bonus_y, 0xFFFF00);
 
     for (int i = 0; i < OBST_COUNT; i++)
-        graphics_draw_pixel(obst_x[i], obst_y[i], 0x888888);
+        draw_block(obst_x[i], obst_y[i], 0x888888);
 }
 /* ===================================================== */
 /* ======================= MAIN ========================= */
@@ -634,12 +656,19 @@ int main()
             else if (mode == 32)
             {
                 // draw circle test
-                graphics_draw_circle(W / 2, H / 2, 20, 0xFF00FF);
+                graphics_draw_circle(W / 2 - 20, H / 2 - 20, 20, 0xFF00FF);
+                graphics_draw_circle_filled(W / 2, H / 2, 20, 0x00FFFF);
             }
             else if (mode == 64)
             {
-                // draw circle filled test
-                graphics_draw_circle_filled(W / 2, H / 2, 20, 0x00FFFF);
+                // draw random image
+                const uint8_t img_gray[4 * 4] = {
+                    0, 64, 128, 255,
+                    255, 128, 64, 0,
+                    32, 96, 160, 224,
+                    224, 160, 96, 32};
+
+                graphics_draw_image_u8(img_gray, 4, 4, 1, 50, 20);
             }
             else if (mode == 128)
             {

@@ -1,13 +1,8 @@
-// #include "/tmp/ripes_system.h"
 #include <stdint.h>
 #include <stdio.h>
 
-#include "lib/graphics.h"
-#include "lib/pixel.h"
-
 #define W LED_MATRIX_0_WIDTH
 #define H LED_MATRIX_0_HEIGHT
-
 
 // *****************************************************************************
 // * SWITCHES_0
@@ -38,12 +33,8 @@
 #define LED_MATRIX_0_WIDTH (0x80)
 #define LED_MATRIX_0_HEIGHT (0x40)
 
-#define BRICK_ROWS 5
-#define BRICK_COLS 10
-#define BRICK_W (W / BRICK_COLS)
-#define BRICK_H 3
-
-uint8_t bricks[BRICK_ROWS][BRICK_COLS];
+#include "lib/graphics.h"
+#include "lib/pixel.h"
 
 /* ===================================================== */
 /* ================= BRICK BREAKER ===================== */
@@ -58,7 +49,7 @@ uint8_t bricks[BRICK_ROWS][BRICK_COLS];
 
 /* ==== GAME STATE ==== */
 int paddle_x;
-int paddle_w = 12;
+int paddle_w = 24;
 
 int ball_x, ball_y;
 int ball_dx, ball_dy;
@@ -144,12 +135,18 @@ void brick_step()
 
         int hit = ball_x - paddle_x;
 
-        if (hit < paddle_w / 2)
-            ball_dx = -1;
-        else
-            ball_dx = 1;
+        // Rozdělíme pálku na 3 zóny:
+        if (hit < paddle_w / 3)
+        {
+            ball_dx = -1; // Vždy vlevo
+        }
+        else if (hit > (2 * paddle_w) / 3)
+        {
+            ball_dx = 1; // Vždy vpravo
+        }
+        // Ve střední části dx neměníme
 
-        ball_dy *= -1;
+        ball_dy = -1; // Odraz nahoru
     }
 
     /* ================= BRICK KOLIZE ================= */
@@ -211,6 +208,7 @@ void init_bricks()
 
 #define MAX_LEN 60
 #define OBST_COUNT 10
+#define CELL 2
 
 int snake_x[MAX_LEN];
 int snake_y[MAX_LEN];
@@ -245,24 +243,32 @@ int is_bonus(int x, int y)
     return (x == bonus_x && y == bonus_y);
 }
 
+/* draw a CELL x CELL block */
+void draw_block(int x, int y, uint32_t color)
+{
+    for (int yy = 0; yy < CELL; yy++)
+        for (int xx = 0; xx < CELL; xx++)
+            graphics_draw_pixel(x + xx, y + yy, color);
+}
+
 /* KLÍČOVÁ FUNKCE – správné mazání */
 void erase_tail(int x, int y)
 {
     if (is_obstacle(x, y))
     {
-        graphics_draw_pixel(x, y, 0x888888);
+        draw_block(x, y, 0x888888);
     }
     else if (is_food(x, y))
     {
-        graphics_draw_pixel(x, y, 0xFF0000);
+        draw_block(x, y, 0xFF0000);
     }
     else if (is_bonus(x, y))
     {
-        graphics_draw_pixel(x, y, 0xFFFF00);
+        draw_block(x, y, 0xFFFF00);
     }
     else
     {
-        graphics_draw_pixel(x, y, 0x000000);
+        draw_block(x, y, 0x000000);
     }
 }
 
@@ -277,35 +283,38 @@ void snake_init()
     dir_x = 1;
     dir_y = 0;
 
-    food_x = 20;
-    food_y = 15;
+    food_x = (20 % (W / CELL)) * CELL;
+    food_y = (15 % (H / CELL)) * CELL;
 
-    bonus_x = 30;
-    bonus_y = 20;
+    bonus_x = (30 % (W / CELL)) * CELL;
+    bonus_y = (20 % (H / CELL)) * CELL;
     bonus_timer = 0;
 
+    /* překážky */
     for (int i = 0; i < OBST_COUNT; i++)
     {
-        obst_x[i] = (i * 11) % W;
-        obst_y[i] = (i * 7) % H;
+        obst_x[i] = ((i * 11) % (W / CELL)) * CELL;
+        obst_y[i] = ((i * 7) % (H / CELL)) * CELL;
     }
 
+    /* had */
     for (int i = 0; i < snake_len; i++)
     {
-        snake_x[i] = 10 - i;
-        snake_y[i] = 10;
+        snake_x[i] = (10 - i) * CELL;
+        snake_y[i] = 10 * CELL;
     }
 
-    /* první vykreslení */
+    /* vykreslení */
     for (int i = 0; i < OBST_COUNT; i++)
-        graphics_draw_pixel(obst_x[i], obst_y[i], 0x888888);
+        draw_block(obst_x[i], obst_y[i], 0x888888);
 
-    graphics_draw_pixel(food_x, food_y, 0xFF0000);
-    graphics_draw_pixel(bonus_x, bonus_y, 0xFFFF00);
+    draw_block(food_x, food_y, 0xFF0000);
+    draw_block(bonus_x, bonus_y, 0xFFFF00);
 
     for (int i = 0; i < snake_len; i++)
-        graphics_draw_pixel(snake_x[i], snake_y[i], 0x00FF00);
+        draw_block(snake_x[i], snake_y[i], 0x00FF00);
 }
+
 /* ================= STEP ================= */
 
 void snake_step()
@@ -316,22 +325,22 @@ void snake_step()
     volatile uint32_t *right = (uint32_t *)D_PAD_0_RIGHT;
 
     /* ovládání */
-    if (*up)
+    if (*up && dir_y != 1)
     {
         dir_x = 0;
         dir_y = -1;
     }
-    if (*down)
+    if (*down && dir_y != -1)
     {
         dir_x = 0;
         dir_y = 1;
     }
-    if (*left)
+    if (*left && dir_x != 1)
     {
         dir_x = -1;
         dir_y = 0;
     }
-    if (*right)
+    if (*right && dir_x != -1)
     {
         dir_x = 1;
         dir_y = 0;
@@ -348,8 +357,8 @@ void snake_step()
     }
 
     /* hlava */
-    snake_x[0] += dir_x;
-    snake_y[0] += dir_y;
+    snake_x[0] += dir_x * CELL;
+    snake_y[0] += dir_y * CELL;
 
     /* kolize stěny */
     if (snake_x[0] < 0 || snake_x[0] >= W ||
@@ -384,39 +393,61 @@ void snake_step()
         }
     }
 
-    /* food */
+    /* ===== FOOD (+1) ===== */
     if (snake_x[0] == food_x && snake_y[0] == food_y)
     {
+
         if (snake_len < MAX_LEN)
-            snake_len++;
-        food_x = (food_x + 13) % W;
-        food_y = (food_y + 9) % H;
+            snake_len += 1;
+
+        draw_block(food_x, food_y, 0x000000);
+
+        do
+        {
+            food_x = (((food_x / CELL) + 13) % (W / CELL)) * CELL;
+            food_y = (((food_y / CELL) + 9) % (H / CELL)) * CELL;
+        } while (is_obstacle(food_x, food_y));
     }
 
-    /* bonus */
+    /* ===== BONUS (+2) ===== */
     bonus_timer++;
+
     if (bonus_timer > 200)
     {
-        bonus_x = (bonus_x + 17) % W;
-        bonus_y = (bonus_y + 5) % H;
+        draw_block(bonus_x, bonus_y, 0x000000);
+
+        bonus_x = (((bonus_x / CELL) + 17) % (W / CELL)) * CELL;
+        bonus_y = (((bonus_y / CELL) + 5) % (H / CELL)) * CELL;
+
         bonus_timer = 0;
     }
 
     if (snake_x[0] == bonus_x && snake_y[0] == bonus_y)
     {
+
         if (snake_len < MAX_LEN - 2)
             snake_len += 2;
+
+        draw_block(bonus_x, bonus_y, 0x000000);
+
+        do
+        {
+            bonus_x = (((bonus_x / CELL) + 17) % (W / CELL)) * CELL;
+            bonus_y = (((bonus_y / CELL) + 5) % (H / CELL)) * CELL;
+        } while (is_obstacle(bonus_x, bonus_y));
+
+        bonus_timer = 0;
     }
 
-    /* kreslení hlavy */
-    graphics_draw_pixel(snake_x[0], snake_y[0], 0x00FF00);
+    /* ===== KRESLENÍ ===== */
 
-    /* kreslení objektů */
-    graphics_draw_pixel(food_x, food_y, 0xFF0000);
-    graphics_draw_pixel(bonus_x, bonus_y, 0xFFFF00);
+    draw_block(snake_x[0], snake_y[0], 0x00FF00);
+
+    draw_block(food_x, food_y, 0xFF0000);
+    draw_block(bonus_x, bonus_y, 0xFFFF00);
 
     for (int i = 0; i < OBST_COUNT; i++)
-        graphics_draw_pixel(obst_x[i], obst_y[i], 0x888888);
+        draw_block(obst_x[i], obst_y[i], 0x888888);
 }
 /* ===================================================== */
 /* ======================= MAIN ========================= */
@@ -474,12 +505,19 @@ int main()
             else if (mode == 32)
             {
                 // draw circle test
-                graphics_draw_circle(W / 2, H / 2, 20, 0xFF00FF);
+                graphics_draw_circle(W / 2 - 20, H / 2 - 20, 20, 0xFF00FF);
+                graphics_draw_circle_filled(W / 2, H / 2, 20, 0x00FFFF);
             }
             else if (mode == 64)
             {
-                // draw circle filled test
-                graphics_draw_circle_filled(W / 2, H / 2, 20, 0x00FFFF);
+                // draw random image
+                const uint8_t img_gray[4 * 4] = {
+                    0, 64, 128, 255,
+                    255, 128, 64, 0,
+                    32, 96, 160, 224,
+                    224, 160, 96, 32};
+
+                graphics_draw_image_u8(img_gray, 4, 4, 1, 50, 20);
             }
             else if (mode == 128)
             {
@@ -505,3 +543,4 @@ int main()
             ;
     }
 }
+
