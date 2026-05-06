@@ -5,7 +5,7 @@ LDFLAGS=-static -lm
 
 # ************************ EXECUTABLES ************************
 
-all: main main-lib benchmark of-main of-benchmark of-img of-img_fullwidth
+all: main main-lib of-main of-benchmark of-img of-img-fullwidth
 
 # make using library
 main-lib: lib main.o
@@ -27,8 +27,6 @@ of-img: src/onefile/img.c
 of-img-fullwidth: src/onefile/img_fullwidth.c
 	${CC} ${CFLAGS} -x c src/onefile/img_fullwidth.c -o build/of-img_fullwidth.elf ${LDFLAGS}
 
-benchmark: src/lib/pixel.c src/lib/graphics.c src/benchmark.c
-	${CC} ${CFLAGS} -x c src/benchmark.c src/lib/graphics.c src/lib/pixel.c -o build/benchmark.elf ${LDFLAGS}
 # ************************ BINARIES ************************
 
 graphics.o: src/lib/graphics.c src/lib/graphics.h

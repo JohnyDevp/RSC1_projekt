@@ -51,12 +51,63 @@ uint8_t bricks[BRICK_ROWS][BRICK_COLS];
 int paddle_x;
 int paddle_w = 24;
 
-int ball_x, ball_y;
-int ball_dx, ball_dy;
+/* Fixed-point ball position and velocity (Q8: lower 8 bits = fraction).
+ * All velocities below have the same magnitude ~181/256 ≈ 0.707 pixels/step
+ * so that sqrt(vx^2 + vy^2) is constant regardless of direction.
+ *
+ * Angle table (vx, vy) in Q8 units – speed ≈ 181 (~√2 * 128):
+ *   idx 0: steep left   (-109,  154)  ~= (-0.43,  0.60)  angle ~54°
+ *   idx 1: medium left  (-154,  109)  ~= (-0.60,  0.43)  angle ~36°
+ *   idx 2: shallow      (-181,   72)  ~= (-0.71,  0.28)  angle ~22°
+ *   idx 3: medium right ( 154,  109)
+ *   idx 4: steep right  ( 109,  154)
+ * All have |v| = 181 in Q8 ≈ 0.707 real px/step.
+ */
+#define SPEED 181 /* Q8 speed magnitude, ~= 128*sqrt(2) */
 
-/* ==== OLD POSITIONS (KLÍČOVÉ!) ==== */
+typedef struct
+{
+    int vx;
+    int vy;
+} Angle;
+
+/* Five upward-going angle presets (vy negative = moving up).
+ * We store the unsigned magnitudes; signs are applied at launch/bounce. */
+static const Angle angles[5] = {
+    {-109, -154}, /* steep left  */
+    {-154, -109}, /* medium left */
+    {-181, -72},  /* shallow left (least steep) */
+    {154, -109},  /* medium right */
+    {109, -154},  /* steep right  */
+};
+
+/* Q8 fixed-point ball state */
+static int bfx, bfy; /* position × 256 */
+static int bvx, bvy; /* velocity in Q8 units per step */
+
+/* Integer pixel position (derived each step from bfx/bfy) */
+int ball_x, ball_y;
+
+/* Old pixel positions for erase */
 int old_ball_x, old_ball_y;
 int old_paddle_x;
+
+/* Simple counter used to vary the launch angle between lives */
+static int angle_counter = 0;
+
+/* ==== HELPERS ==== */
+
+/* Pick a velocity pair from the table, ensuring vy is negative (going up).
+ * sign_x: -1 = left, +1 = right, 0 = use table x as-is */
+static void set_angle(int idx, int sign_x)
+{
+    bvx = angles[idx].vx;
+    bvy = angles[idx].vy; /* already negative */
+    if (sign_x < 0 && bvx > 0)
+        bvx = -bvx;
+    if (sign_x > 0 && bvx < 0)
+        bvx = -bvx;
+}
 
 /* ==== INIT ==== */
 void brick_init()
@@ -66,8 +117,15 @@ void brick_init()
 
     ball_x = W / 2;
     ball_y = H - 6;
-    ball_dx = 1;
-    ball_dy = -1;
+
+    /* Fixed-point start position */
+    bfx = ball_x << 8;
+    bfy = ball_y << 8;
+
+    /* Launch with a non-trivial angle that changes each life */
+    int ai = angle_counter % 5;
+    angle_counter++;
+    set_angle(ai, (ai < 2) ? -1 : 1);
 
     old_ball_x = ball_x;
     old_ball_y = ball_y;
@@ -80,12 +138,9 @@ void brick_init()
         for (int c = 0; c < BRICK_COLS; c++)
         {
             bricks[r][c] = 1;
-
             graphics_draw_rect_filled(
-                c * BRICK_W,
-                r * BRICK_H,
-                BRICK_W - 1,
-                BRICK_H - 1,
+                c * BRICK_W, r * BRICK_H,
+                BRICK_W - 1, BRICK_H - 1,
                 0xFF0000);
         }
     }
@@ -102,55 +157,79 @@ void brick_step()
     volatile uint32_t *right = (uint32_t *)D_PAD_0_RIGHT;
 
     /* ================= MAZÁNÍ ================= */
-
-    /* smaž starý míček */
     graphics_draw_pixel(old_ball_x, old_ball_y, 0x000000);
-
-    /* smaž pálku jen pokud se hnula */
     graphics_draw_rect_filled(old_paddle_x, H - 2, paddle_w, 2, 0x000000);
 
     /* ================= OVLÁDÁNÍ ================= */
-
     if (*left && paddle_x > 0)
         paddle_x--;
     if (*right && paddle_x < W - paddle_w)
         paddle_x++;
 
-    /* ================= POHYB ================= */
+    /* ================= POHYB (fixed-point) ================= */
+    bfx += bvx;
+    bfy += bvy;
 
-    ball_x += ball_dx;
-    ball_y += ball_dy;
+    ball_x = bfx >> 8;
+    ball_y = bfy >> 8;
 
-    /* stěny */
-    if (ball_x <= 0 || ball_x >= W - 1)
-        ball_dx *= -1;
-    if (ball_y <= 0)
-        ball_dy *= -1;
+    /* ================= STĚNY ================= */
+    /* Reflect only when moving toward the wall, then push one pixel inside
+     * so the check cannot re-trigger on the very next step. */
+    if (ball_x <= 0 && bvx < 0)
+    {
+        bvx = -bvx;
+        bfx = 1 << 8; /* push to pixel 1 */
+        ball_x = 1;
+    }
+    if (ball_x >= W - 1 && bvx > 0)
+    {
+        bvx = -bvx;
+        bfx = (W - 2) << 8; /* push to pixel W-2 */
+        ball_x = W - 2;
+    }
+    if (ball_y <= 0 && bvy < 0)
+    {
+        bvy = -bvy;
+        bfy = 1 << 8; /* push to pixel 1 */
+        ball_y = 1;
+    }
 
-    /* pálka */
+    /* ================= PÁLKA ================= */
     if (ball_y >= H - 3 &&
         ball_x >= paddle_x &&
         ball_x < paddle_x + paddle_w)
     {
-
         int hit = ball_x - paddle_x;
 
-        // Rozdělíme pálku na 3 zóny:
+        /* Three paddle zones select angle index; vy always becomes upward */
         if (hit < paddle_w / 3)
         {
-            ball_dx = -1; // Vždy vlevo
+            /* Left third: steep-left or medium-left */
+            int ai = (hit < paddle_w / 6) ? 0 : 1;
+            set_angle(ai, -1);
         }
         else if (hit > (2 * paddle_w) / 3)
         {
-            ball_dx = 1; // Vždy vpravo
+            /* Right third: medium-right or steep-right */
+            int ai = (hit > (5 * paddle_w) / 6) ? 4 : 3;
+            set_angle(ai, 1);
         }
-        // Ve střední části dx neměníme
+        else
+        {
+            /* Centre: shallow angle, direction preserved from before */
+            int sign = (bvx >= 0) ? 1 : -1;
+            set_angle(2, sign);
+        }
 
-        ball_dy = -1; // Odraz nahoru
+        /* Snap ball above paddle and ensure vy is upward */
+        ball_y = H - 3;
+        bfy = ball_y << 8;
+        if (bvy > 0)
+            bvy = -bvy;
     }
 
     /* ================= BRICK KOLIZE ================= */
-
     int r = ball_y / BRICK_H;
     int c = ball_x / BRICK_W;
 
@@ -158,21 +237,15 @@ void brick_step()
         c >= 0 && c < BRICK_COLS &&
         bricks[r][c])
     {
-
         bricks[r][c] = 0;
-
         graphics_draw_rect_filled(
-            c * BRICK_W,
-            r * BRICK_H,
-            BRICK_W - 1,
-            BRICK_H - 1,
+            c * BRICK_W, r * BRICK_H,
+            BRICK_W - 1, BRICK_H - 1,
             0x000000);
-
-        ball_dy *= -1;
+        bvy = -bvy; /* vertical bounce */
     }
 
     /* ================= RESET ================= */
-
     if (ball_y >= H)
     {
         brick_init();
@@ -180,12 +253,10 @@ void brick_step()
     }
 
     /* ================= KRESLENÍ ================= */
-
     graphics_draw_rect_filled(paddle_x, H - 2, paddle_w, 2, 0x00FF00);
     graphics_draw_pixel(ball_x, ball_y, 0xFFFFFF);
 
     /* ================= ULOŽ POZICE ================= */
-
     old_ball_x = ball_x;
     old_ball_y = ball_y;
     old_paddle_x = paddle_x;
@@ -194,12 +265,8 @@ void brick_step()
 void init_bricks()
 {
     for (int r = 0; r < BRICK_ROWS; r++)
-    {
         for (int c = 0; c < BRICK_COLS; c++)
-        {
             bricks[r][c] = 1;
-        }
-    }
 }
 
 /* ===================================================== */
@@ -314,7 +381,6 @@ void snake_init()
     for (int i = 0; i < snake_len; i++)
         draw_block(snake_x[i], snake_y[i], 0x00FF00);
 }
-
 /* ================= STEP ================= */
 
 void snake_step()
@@ -543,4 +609,3 @@ int main()
             ;
     }
 }
-

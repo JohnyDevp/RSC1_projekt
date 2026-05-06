@@ -24,7 +24,7 @@ add_custom_target(lib
     DEPENDS prepare
 )
 
-add_custom_target(main-lib ALL
+add_custom_target(main-lib
     COMMAND ${CC} ${CFLAGS} -c ${CMAKE_SOURCE_DIR}/src/main.c -o ${BIN_DIR}/main.o
     COMMAND ${CC} ${CFLAGS} ${BIN_DIR}/main.o -o ${BUILD_DIR}/main.elf -L${BIN_DIR} -lgfx ${LDFLAGS}
     DEPENDS lib prepare
@@ -59,16 +59,6 @@ add_custom_target(of-img-fullwidth
     DEPENDS prepare
 )
 
-add_custom_target(benchmark
-    COMMAND ${CC} ${CFLAGS} -x c
-            ${CMAKE_SOURCE_DIR}/src/benchmark.c
-            ${CMAKE_SOURCE_DIR}/src/lib/graphics.c
-            ${CMAKE_SOURCE_DIR}/src/lib/pixel.c
-            -o ${BUILD_DIR}/benchmark.elf
-            ${LDFLAGS}
-    DEPENDS prepare
-)
-
 add_custom_target(img
     COMMAND ${CC} ${CFLAGS} -x c
             ${CMAKE_SOURCE_DIR}/src/img.c
@@ -80,7 +70,7 @@ add_custom_target(img
 )
 
 add_custom_target(all_targets
-    DEPENDS main main-lib benchmark of-main of-benchmark of-img of-img-fullwidth
+    DEPENDS main main-lib of-main of-benchmark of-img of-img-fullwidth
 )
 
 add_custom_target(clean-build
@@ -94,6 +84,4 @@ add_custom_target(clean-build
             ${BUILD_DIR}/of-benchmark.elf
             ${BUILD_DIR}/of-img.elf
             ${BUILD_DIR}/of-img_fullwidth.elf
-            ${BUILD_DIR}/benchmark.elf
-            ${BUILD_DIR}/img.elf
 )
